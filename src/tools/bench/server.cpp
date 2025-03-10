@@ -65,7 +65,10 @@ ServerStreamCallback(
         //
         // Data was received from the peer on the stream.
         //
-        printf("[strm][%p] Server data received\n", Stream);
+        printf("[strm][%p] Server data received %lld bytes with %d buffers\n", Stream, Event->RECEIVE.TotalBufferLength, Event->RECEIVE.BufferCount);
+        for (uint32_t i = 0; i < Event->RECEIVE.BufferCount; i++) {
+            printf("[strm][%p] Buffer %d: %.*s\n", Stream, i, Event->RECEIVE.Buffers[i].Length, Event->RECEIVE.Buffers[i].Buffer);
+        }
         break;
     case QUIC_STREAM_EVENT_PEER_SEND_SHUTDOWN:
         //

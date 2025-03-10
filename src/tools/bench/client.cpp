@@ -67,6 +67,8 @@ ClientSend(
     HQUIC Stream = NULL;
     uint8_t* SendBufferRaw;
     QUIC_BUFFER* SendBuffer;
+    //const char* Messages[] = { "Hello, QUIC!", "How are you?", "Goodbye!" };
+    char raw_data[8] = "Hello!";
 
     //
     // Create/allocate a new bidirectional stream. The stream is just allocated
@@ -93,6 +95,7 @@ ClientSend(
     // Allocates and builds the buffer to send over the stream.
     //
     SendBufferRaw = (uint8_t*)malloc(sizeof(QUIC_BUFFER) + SendBufferLength);
+    memset(SendBufferRaw, 0, sizeof(QUIC_BUFFER) + SendBufferLength);
     if (SendBufferRaw == NULL) {
         printf("SendBuffer allocation failed!\n");
         Status = QUIC_STATUS_OUT_OF_MEMORY;
@@ -100,6 +103,7 @@ ClientSend(
     }
     SendBuffer = (QUIC_BUFFER*)SendBufferRaw;
     SendBuffer->Buffer = SendBufferRaw + sizeof(QUIC_BUFFER);
+    memcpy(SendBuffer->Buffer, raw_data, sizeof(raw_data));
     SendBuffer->Length = SendBufferLength;
 
     printf("[strm][%p] Client sending data... %d bytes\n", Stream, SendBufferLength);
@@ -109,12 +113,22 @@ ClientSend(
     // the buffer. This indicates this is the last buffer on the stream and the
     // the stream is shut down (in the send direction) immediately after.
     //
-    if (QUIC_FAILED(Status = MsQuic->StreamSend(Stream, SendBuffer, 1, QUIC_SEND_FLAG_FIN, SendBuffer))) {
+    /*
+    for (int i = 0; i < 3; ++i) {
+        QUIC_BUFFER Buffer = { (uint32_t)strlen(Messages[i]), (uint8_t*)Messages[i] };
+        if (QUIC_FAILED(Status = MsQuic->StreamSend(Stream, &Buffer, 1, QUIC_SEND_FLAG_NONE, nullptr))) {
+            printf("Client StreamSend failed, 0x%x!\n", Status);
+            goto Error;
+        }
+        else {
+            printf("Sent %dth buffers\n", i);
+        }
+    }*/
+    if (QUIC_FAILED(Status = MsQuic->StreamSend(Stream, SendBuffer, 1, QUIC_SEND_FLAG_NONE, SendBuffer))) {
         printf("Client StreamSend failed, 0x%x!\n", Status);
         free(SendBufferRaw);
         goto Error;
     }
-
 Error:
 
     if (QUIC_FAILED(Status)) {
@@ -186,7 +200,7 @@ ClientConnectionCallback(
         // A resumption ticket (also called New Session Ticket or NST) was
         // received from the server.
         //
-        printf("[conn][%p] Resumption ticket received (%u bytes):\n", Connection, Event->RESUMPTION_TICKET_RECEIVED.ResumptionTicketLength);
+        printf("[conn][%p] Client Resumption ticket received (%u bytes):\n", Connection, Event->RESUMPTION_TICKET_RECEIVED.ResumptionTicketLength);
         for (uint32_t i = 0; i < Event->RESUMPTION_TICKET_RECEIVED.ResumptionTicketLength; i++) {
             printf("%.2X", (uint8_t)Event->RESUMPTION_TICKET_RECEIVED.ResumptionTicket[i]);
         }
