@@ -27,7 +27,7 @@ const uint64_t IdleTimeoutMs = 1000;
 //
 // TODO: modify this value to adjust file size in number of char (1 char = 1 byte)
 // FIXME: server relies on this value
-const uint32_t SendBufferLength = 1048576 * sizeof(char); // QUIC itself handles splitting data to different ethernet frames.
+const uint32_t SendBufferLength = 1024 * sizeof(char); // QUIC itself handles splitting data to different ethernet frames.
 
 //
 // The QUIC API/function table returned from MsQuicOpen2. It contains all the

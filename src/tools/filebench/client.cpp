@@ -1,5 +1,6 @@
 #include "client.h"
 
+#include <chrono>
 #include <locale>
 #include <string>
 
@@ -72,12 +73,14 @@ ClientSend(
 )
 {
     const uint16_t NumStream = 1;
-    // const uint16_t NumPayload = 5; // Send the payload for N times in one stream to simulate sending a large file
+    // TODO: NumPayload > 1 (sending more than 1 files in a stream) is NOT working
+    const uint16_t NumPayload = 1; // Send the payload for N times in one stream to simulate sending N large files
     QUIC_STATUS Status;
     HQUIC StreamArr[NumStream];
     QUIC_BUFFER* SendBuffers[NumStream];
     uint8_t* SendBuffersRaw[NumStream];
     char* Messages[NumStream];
+    uint8_t* payload_ptr = NULL; // Write timestamp immediately before sending a file
     for (int i = 0; i < NumStream; i++)
     {
         Messages[i] = (char*) malloc(SendBufferLength);
@@ -109,6 +112,7 @@ ClientSend(
         SendBuffers[i]->Buffer = SendBuffersRaw[i] + sizeof(QUIC_BUFFER);
         // QUIC_BUFFER struct and QUIC_BUFFER.Buffer all points to a same memory allocation
         memcpy(SendBuffers[i]->Buffer, Messages[i], SendBufferLength);
+        payload_ptr = SendBuffers[i]->Buffer;
         SendBuffers[i]->Length = SendBufferLength;
         printf("Stream number %u : ", i);
         printf("[strm][%p] Client sending data... %u bytes\n", StreamArr[i], SendBufferLength);
@@ -153,14 +157,20 @@ ClientSend(
     for (int i = 0; i < NumStream; i++)
     {
         printf("Stream number %u begin sending a file \n", i);
-        // for (int j = 0; j < NumPayload - 1; j++)
-        // {
-        //     if (QUIC_FAILED(Status = MsQuic->StreamSend(StreamArr[i], SendBuffers[i], 1, QUIC_SEND_FLAG_NONE, SendBuffers[i]))) {
-        //         printf("Client StreamSend failed, 0x%x!\n", Status);
-        //         free(SendBuffersRaw[i]);
-        //         goto Error;
-        //     }
-        // }
+        if (payload_ptr != NULL)
+        {
+            uint64_t nanosecond = std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::high_resolution_clock::now().time_since_epoch()).count();
+            *(uint64_t*)payload_ptr = nanosecond; // Write nanosecond timestamp to first 8 bytes (64 bits) from the pointer
+        }
+
+        for (int j = 0; j < NumPayload - 1; j++)
+        {
+            if (QUIC_FAILED(Status = MsQuic->StreamSend(StreamArr[i], SendBuffers[i], 1, QUIC_SEND_FLAG_NONE, SendBuffers[i]))) {
+                printf("Client StreamSend failed, 0x%x!\n", Status);
+                free(SendBuffersRaw[i]);
+                goto Error;
+            }
+        }
 
         // Last payload: send the buffer with FIN flag to gracefully shut down this stream.
         if (QUIC_FAILED(Status = MsQuic->StreamSend(StreamArr[i], SendBuffers[i], 1, QUIC_SEND_FLAG_FIN, SendBuffers[i]))) {
