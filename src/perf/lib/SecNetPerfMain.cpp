@@ -364,9 +364,10 @@ uint32_t QuicMainGetExtraDataLength() {
 void
 QuicMainGetExtraData(
     _Out_writes_bytes_(Length) uint8_t* Data,
+    _Out_writes_bytes_(Length) uint8_t* DownloadTimeData,
     _In_ uint32_t Length
     )
 {
     CXPLAT_FRE_ASSERT(Client);
-    Client->GetExtraData(Data, Length);
+    Client->GetExtraData(Data, DownloadTimeData, Length);
 }

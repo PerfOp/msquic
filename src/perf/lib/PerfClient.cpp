@@ -345,10 +345,12 @@ PerfClient::Init(
         }
 
         LatencyValues = UniquePtr<uint32_t[]>(new(std::nothrow) uint32_t[(size_t)MaxLatencyIndex]);
-        if (LatencyValues == nullptr) {
+        DownloadTimeValues = UniquePtr<uint32_t[]>(new(std::nothrow) uint32_t[(size_t)MaxLatencyIndex]);
+        if (LatencyValues == nullptr || DownloadTimeValues == nullptr) {
             return QUIC_STATUS_OUT_OF_MEMORY;
         }
         CxPlatZeroMemory(LatencyValues.get(), (size_t)(sizeof(uint32_t) * MaxLatencyIndex));
+        CxPlatZeroMemory(DownloadTimeValues.get(), (size_t)(sizeof(uint32_t) * MaxLatencyIndex));
     }
 
     return QUIC_STATUS_SUCCESS;
@@ -492,6 +494,7 @@ PerfClient::GetExtraDataLength(
 void
 PerfClient::GetExtraData(
     _Out_writes_bytes_(Length) uint8_t* Data,
+    _Out_writes_bytes_(Length) uint8_t* DownloadTimeData,
     _In_ uint32_t Length
     )
 {
@@ -503,6 +506,10 @@ PerfClient::GetExtraData(
     CxPlatCopyMemory(Data, &Count, sizeof(Count));
     Data += sizeof(CurLatencyIndex);
     CxPlatCopyMemory(Data, LatencyValues.get(), (size_t)(Count * sizeof(uint32_t)));
+
+    // Store Download Time Data at the beginning of DownloadTimeData buffer
+    // Due to how LatencyValues and DownloadTimeValues are written, if first N values of DownloadTimeValues is valid, then first N values of DownloadTimeValues is also valid.
+    CxPlatCopyMemory(DownloadTimeData, DownloadTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
 }
 
 void
@@ -1067,7 +1074,9 @@ PerfClientStream::OnShutdown() {
             const auto Index = (uint64_t)InterlockedIncrement64((int64_t*)&Connection.Client.CurLatencyIndex) - 1;
             if (Index < Client.MaxLatencyIndex) {
                 const auto Latency = CxPlatTimeDiff64(StartTime, RecvEndTime);
+                const auto DownloadTime = CxPlatTimeDiff64(SendEndTime, RecvEndTime);
                 Client.LatencyValues[(size_t)Index] = Latency > UINT32_MAX ? UINT32_MAX : (uint32_t)Latency;
+                Client.DownloadTimeValues[(size_t)Index] = DownloadTime > UINT32_MAX ? UINT32_MAX : (uint32_t)DownloadTime;
                 InterlockedIncrement64((int64_t*)&Connection.Client.LatencyCount);
             }
         }

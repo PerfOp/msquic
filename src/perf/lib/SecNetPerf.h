@@ -85,6 +85,7 @@ extern
 void
 QuicMainGetExtraData(
     _Out_writes_bytes_(Length) uint8_t* Data,
+    _Out_writes_bytes_(Length) uint8_t* DownloadTimeData,
     _In_ uint32_t Length
     );
 

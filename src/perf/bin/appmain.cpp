@@ -9,6 +9,9 @@ Abstract:
 
 --*/
 
+#include <string>
+#include <vector>
+
 #include "SecNetPerf.h"
 #include "LatencyHelpers.h"
 #include "histogram/hdr_histogram.h"
@@ -26,6 +29,7 @@ typedef struct {
 void
 QuicHandleExtraData(
     _In_reads_(Length) uint8_t* ExtraData,
+    _In_reads_(Length) uint8_t* DownloadTimeData,
     _In_ uint32_t Length,
     _In_opt_z_ const char* FileName
     )
@@ -49,7 +53,40 @@ QuicHandleExtraData(
     }
 
     Statistics LatencyStats;
+    Statistics DownloadTimeStats;
     Percentiles PercentileStats;
+    Percentiles DownloadTimePercentileStats;
+
+    // davidxie: write latency counters to gzip-compressed .csv file
+    printf("BEGIN exporting latency counters to .csv files\n");
+
+    std::vector<uint8_t> buffer;
+    std::string tableHeader = "latency_index,latency_values,download_time_index,download_time_value\n";
+    buffer.insert(buffer.end(), tableHeader.begin(), tableHeader.end());
+    // Convert raw counters to csv-formatted table
+    for (uint32_t i = 0; i < MaxCount; i++)
+    {
+        std::string row = std::to_string(i) + "," + std::to_string((unsigned int)((uint32_t*)ExtraData)[i]) + "," +
+                        std::to_string(i) + "," + std::to_string((unsigned int)((uint32_t*)DownloadTimeData)[i]) +"\n";
+                    // ExtraData is cast to uint32_t* in GetStatistics()
+        buffer.insert(buffer.end(), row.begin(), row.end());
+    }
+    FILE* file;
+    if (fopen_s(&file, "msquic_downloadtime_counters.csv", "wb") != 0) {
+        printf("Failed to open the msquic_downloadtime_counters.csv file for writing!\n");
+        return;
+    }
+
+    const size_t bytesWritten = fwrite(buffer.data(), sizeof(uint8_t), buffer.size(), file);
+    if (bytesWritten != buffer.size()) {
+        printf("Error writing to the csv file!\n");
+        fclose(file);
+        return;
+    }
+    // Close the csv file
+    fclose(file);
+    // davidxie: END write latency counters to gzip-compressed .csv file
+
     GetStatistics((uint32_t*)ExtraData, MaxCount, &LatencyStats, &PercentileStats);
     WriteOutput(
         "Result: %u RPS, Latency,us 0th: %d, 50th: %.0f, 90th: %.0f, 99th: %.0f, 99.9th: %.0f, 99.99th: %.0f, 99.999th: %.0f, 99.9999th: %.0f, Max: %d\n",
@@ -63,6 +100,20 @@ QuicHandleExtraData(
         PercentileStats.P99p999,
         PercentileStats.P99p9999,
         LatencyStats.Max);
+
+    GetStatistics((uint32_t*)DownloadTimeData, MaxCount, &DownloadTimeStats, &DownloadTimePercentileStats);
+    WriteOutput(
+        "Result: %u RPS, Download Time,us 0th: %d, 50th: %.0f, 90th: %.0f, 99th: %.0f, 99.9th: %.0f, 99.99th: %.0f, 99.999th: %.0f, 99.9999th: %.0f, Max: %d\n",
+        RPS,
+        DownloadTimeStats.Min,
+        DownloadTimePercentileStats.P50,
+        DownloadTimePercentileStats.P90,
+        DownloadTimePercentileStats.P99,
+        DownloadTimePercentileStats.P99p9,
+        DownloadTimePercentileStats.P99p99,
+        DownloadTimePercentileStats.P99p999,
+        DownloadTimePercentileStats.P99p9999,
+        DownloadTimeStats.Max);
 
     if (FileName != nullptr) {
 #ifdef _WIN32
@@ -116,9 +167,10 @@ QuicUserMain(
 
     if (const uint32_t DataLength = QuicMainGetExtraDataLength(); DataLength) {
         auto Buffer = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength]);
+        auto DownloadTimeBuffer = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength]);
         CXPLAT_FRE_ASSERT(Buffer.get() != nullptr);
-        QuicMainGetExtraData(Buffer.get(), DataLength);
-        QuicHandleExtraData(Buffer.get(), DataLength, FileName);
+        QuicMainGetExtraData(Buffer.get(), DownloadTimeBuffer.get(), DataLength);
+        QuicHandleExtraData(Buffer.get(), DownloadTimeBuffer.get(), DataLength, FileName);
     }
 
 Exit:
@@ -267,7 +319,8 @@ QuicKernelMain(
                     &DataLength,
                     10000);
             if (RunSuccess) {
-                QuicHandleExtraData(Buffer.get(), DataLength, FileName);
+                printf("NOT writing to filename: %s", FileName);
+                //QuicHandleExtraData(Buffer.get(), DataLength, FileName);
             }
         }
     } else {
