@@ -11,6 +11,9 @@ Abstract:
 
 #pragma once
 
+#include <complex.h>
+#include <unordered_map>
+
 #include "SecNetPerf.h"
 #include "Tcp.h"
 
@@ -141,7 +144,8 @@ struct PerfClient {
     QUIC_STATUS Start(_In_ CXPLAT_EVENT* StopEvent);
     QUIC_STATUS Wait(_In_ int Timeout);
     uint32_t GetExtraDataLength();
-    void GetExtraData(_Out_writes_bytes_(Length) uint8_t* Data, _Out_writes_bytes_(Length) uint8_t* DownloadTimeData, _In_ uint32_t Length);
+    void GetExtraData(_Out_writes_bytes_(Length) uint8_t* Data, std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>>& ExtraTimestamp,_In_ uint32_t
+                      Length);
 
     bool Running {true};
     CXPLAT_EVENT* CompletionEvent {nullptr};
@@ -149,7 +153,10 @@ struct PerfClient {
     uint64_t CurLatencyIndex {0};
     uint64_t LatencyCount {0}; // Also used for the count of DownloadTimeValues array
     UniquePtr<uint32_t[]> LatencyValues {nullptr}; // TODO - Move to Worker
-    UniquePtr<uint32_t[]> DownloadTimeValues {nullptr}; // TODO - Move to Worker
+    UniquePtr<uint32_t[]> StartTimeValues {nullptr}; // Lowest 32 bits of uint64_t StartTime {CxPlatTimeUs64()};
+    UniquePtr<uint32_t[]> RecvStartTimeValues {nullptr}; // Lowest 32 bits of uint64_t RecvStartTime {0};
+    UniquePtr<uint32_t[]> SendEndTimeValues {nullptr}; // Lowest 32 bits of uint64_t SendEndTime {0};
+    UniquePtr<uint32_t[]> RecvEndTimeValues {nullptr}; // Lowest 32 bits of uint64_t RecvEndTime {0};
     PerfClientWorker Workers[PERF_MAX_THREAD_COUNT];
 
     UniquePtr<TcpEngine> Engine;

@@ -344,13 +344,16 @@ PerfClient::Init(
             MaxLatencyIndex = ConnectionCount * StreamCount;
         }
 
-        LatencyValues = UniquePtr<uint32_t[]>(new(std::nothrow) uint32_t[(size_t)MaxLatencyIndex]);
-        DownloadTimeValues = UniquePtr<uint32_t[]>(new(std::nothrow) uint32_t[(size_t)MaxLatencyIndex]);
-        if (LatencyValues == nullptr || DownloadTimeValues == nullptr) {
-            return QUIC_STATUS_OUT_OF_MEMORY;
+        UniquePtr<uint32_t[]>* arr[] = {&LatencyValues, &StartTimeValues, &RecvStartTimeValues, &SendEndTimeValues, &RecvEndTimeValues};
+        for (auto i : arr)
+        {
+            *i = UniquePtr<uint32_t[]>(new(std::nothrow) uint32_t[(size_t)MaxLatencyIndex]);
+            if (*i == nullptr)
+            {
+                return QUIC_STATUS_OUT_OF_MEMORY;
+            }
+            CxPlatZeroMemory(i->get(), (size_t)(sizeof(uint32_t) * MaxLatencyIndex));
         }
-        CxPlatZeroMemory(LatencyValues.get(), (size_t)(sizeof(uint32_t) * MaxLatencyIndex));
-        CxPlatZeroMemory(DownloadTimeValues.get(), (size_t)(sizeof(uint32_t) * MaxLatencyIndex));
     }
 
     return QUIC_STATUS_SUCCESS;
@@ -494,7 +497,7 @@ PerfClient::GetExtraDataLength(
 void
 PerfClient::GetExtraData(
     _Out_writes_bytes_(Length) uint8_t* Data,
-    _Out_writes_bytes_(Length) uint8_t* DownloadTimeData,
+    _Out_ std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>> &ExtraTimestamp,
     _In_ uint32_t Length
     )
 {
@@ -507,9 +510,11 @@ PerfClient::GetExtraData(
     Data += sizeof(CurLatencyIndex);
     CxPlatCopyMemory(Data, LatencyValues.get(), (size_t)(Count * sizeof(uint32_t)));
 
-    // Store Download Time Data at the beginning of DownloadTimeData buffer
-    // Due to how LatencyValues and DownloadTimeValues are written, if first N values of DownloadTimeValues is valid, then first N values of DownloadTimeValues is also valid.
-    CxPlatCopyMemory(DownloadTimeData, DownloadTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
+    // Due to how LatencyValues and DownloadTimeValues are written, if first N values of LatencyValues is valid, then first N values of ExtraTimestamp["kind"] is also valid.
+    CxPlatCopyMemory(ExtraTimestamp["StartTime"].get(), StartTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
+    CxPlatCopyMemory(ExtraTimestamp["RecvStartTime"].get(), RecvStartTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
+    CxPlatCopyMemory(ExtraTimestamp["SendEndTime"].get(), SendEndTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
+    CxPlatCopyMemory(ExtraTimestamp["RecvEndTime"].get(), RecvEndTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
 }
 
 void
@@ -1074,9 +1079,11 @@ PerfClientStream::OnShutdown() {
             const auto Index = (uint64_t)InterlockedIncrement64((int64_t*)&Connection.Client.CurLatencyIndex) - 1;
             if (Index < Client.MaxLatencyIndex) {
                 const auto Latency = CxPlatTimeDiff64(StartTime, RecvEndTime);
-                const auto DownloadTime = CxPlatTimeDiff64(SendEndTime, RecvEndTime);
                 Client.LatencyValues[(size_t)Index] = Latency > UINT32_MAX ? UINT32_MAX : (uint32_t)Latency;
-                Client.DownloadTimeValues[(size_t)Index] = DownloadTime > UINT32_MAX ? UINT32_MAX : (uint32_t)DownloadTime;
+                Client.StartTimeValues[(size_t)Index] = (uint32_t)(StartTime & UINT32_MAX);
+                Client.RecvStartTimeValues[(size_t)Index] = (uint32_t)(RecvStartTime & UINT32_MAX);
+                Client.SendEndTimeValues[(size_t)Index] = (uint32_t)(SendEndTime & UINT32_MAX);
+                Client.RecvEndTimeValues[(size_t)Index] = (uint32_t)(RecvEndTime & UINT32_MAX);
                 InterlockedIncrement64((int64_t*)&Connection.Client.LatencyCount);
             }
         }

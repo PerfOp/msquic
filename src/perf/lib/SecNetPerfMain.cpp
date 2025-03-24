@@ -364,10 +364,10 @@ uint32_t QuicMainGetExtraDataLength() {
 void
 QuicMainGetExtraData(
     _Out_writes_bytes_(Length) uint8_t* Data,
-    _Out_writes_bytes_(Length) uint8_t* DownloadTimeData,
+    _Out_ std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>> &ExtraTimestamp,
     _In_ uint32_t Length
     )
 {
     CXPLAT_FRE_ASSERT(Client);
-    Client->GetExtraData(Data, DownloadTimeData, Length);
+    Client->GetExtraData(Data, ExtraTimestamp, Length);
 }
