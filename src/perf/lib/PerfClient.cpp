@@ -11,6 +11,8 @@ Abstract:
 
 #include "PerfClient.h"
 
+#include <iostream>
+
 #ifdef QUIC_CLOG
 #include "PerfClient.cpp.clog.h"
 #endif
@@ -978,8 +980,12 @@ PerfClientStream::OnSendShutdown(uint64_t Now) {
     if (Connection.Client.PrintStreams) {
         if (Connection.Client.UseTCP) {
             // TODO - Print TCP stream stats
-        } else {
-            QuicPrintStreamStatistics(MsQuic, Handle);
+        }
+        else {
+            //hjwang
+            if (WholeLatency > 8000) {
+                QuicPrintStreamStatistics(MsQuic, Handle);
+            }
         }
     }
     if (RecvEndTime) {
@@ -1078,6 +1084,8 @@ PerfClientStream::OnShutdown() {
                 Client.LatencyValues[(size_t)Index] = Latency > UINT32_MAX ? UINT32_MAX : (uint32_t)Latency;
                 Client.DownloadTimeValues[(size_t)Index] = DownloadTime > UINT32_MAX ? UINT32_MAX : (uint32_t)DownloadTime;
                 InterlockedIncrement64((int64_t*)&Connection.Client.LatencyCount);
+                WholeLatency = Latency;
+                //std::cout<<"=============================="<< this->blockedSending<<" "<<this->normalSending<< std::endl;
             }
         }
         InterlockedIncrement64((int64_t*)&Connection.Worker.StreamsCompleted);
