@@ -13,6 +13,8 @@ Abstract:
 
 #ifndef _KERNEL_MODE
 #define QUIC_TEST_APIS 1 // For self-signed cert API
+#include <string>
+#include <unordered_map>
 #endif
 
 #define QUIC_API_ENABLE_INSECURE_FEATURES 1 // For disabling encryption
@@ -85,7 +87,7 @@ extern
 void
 QuicMainGetExtraData(
     _Out_writes_bytes_(Length) uint8_t* Data,
-    _Out_writes_bytes_(Length) uint8_t* DownloadTimeData,
+    _Out_ std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>> &ExtraTimestamp,
     _In_ uint32_t Length
     );
 

@@ -10,6 +10,7 @@ Abstract:
 --*/
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "SecNetPerf.h"
@@ -29,7 +30,7 @@ typedef struct {
 void
 QuicHandleExtraData(
     _In_reads_(Length) uint8_t* ExtraData,
-    _In_reads_(Length) uint8_t* DownloadTimeData,
+    _In_ std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>> &ExtraTimestamp,
     _In_ uint32_t Length,
     _In_opt_z_ const char* FileName
     )
@@ -53,27 +54,34 @@ QuicHandleExtraData(
     }
 
     Statistics LatencyStats;
-    Statistics DownloadTimeStats;
     Percentiles PercentileStats;
-    Percentiles DownloadTimePercentileStats;
 
     // davidxie: write latency counters to gzip-compressed .csv file
     printf("BEGIN exporting latency counters to .csv files\n");
 
     std::vector<uint8_t> buffer;
-    std::string tableHeader = "latency_index,latency_values,download_time_index,download_time_value\n";
+    std::string tableHeader = "index,latency_values,start_time,recv_start_time,send_end_time,recv_end_time\n";
     buffer.insert(buffer.end(), tableHeader.begin(), tableHeader.end());
     // Convert raw counters to csv-formatted table
+    auto &StartTime = ExtraTimestamp[std::string("StartTime")];
+    auto &RecvStartTime = ExtraTimestamp[std::string("RecvStartTime")];
+    auto &SendEndTime = ExtraTimestamp[std::string("SendEndTime")];
+    auto &RecvEndTime = ExtraTimestamp[std::string("RecvEndTime")];
     for (uint32_t i = 0; i < MaxCount; i++)
     {
-        std::string row = std::to_string(i) + "," + std::to_string((unsigned int)((uint32_t*)ExtraData)[i]) + "," +
-                        std::to_string(i) + "," + std::to_string((unsigned int)((uint32_t*)DownloadTimeData)[i]) +"\n";
-                    // ExtraData is cast to uint32_t* in GetStatistics()
+        std::string row =
+            std::to_string(i) + "," +
+            std::to_string((unsigned int)((uint32_t*)ExtraData)[i]) + "," +
+            std::to_string((unsigned int)((uint32_t*)StartTime.get())[i]) + "," +
+            std::to_string((unsigned int)((uint32_t*)RecvStartTime.get())[i]) + "," +
+            std::to_string((unsigned int)((uint32_t*)SendEndTime.get())[i]) + "," +
+            std::to_string((unsigned int)((uint32_t*)RecvEndTime.get())[i]) + "\n";
+
         buffer.insert(buffer.end(), row.begin(), row.end());
     }
     FILE* file;
-    if (fopen_s(&file, "msquic_downloadtime_counters.csv", "wb") != 0) {
-        printf("Failed to open the msquic_downloadtime_counters.csv file for writing!\n");
+    if (fopen_s(&file, "msquic_timestamps.csv", "wb") != 0) {
+        printf("Failed to open the msquic_timestamps.csv file for writing!\n");
         return;
     }
 
@@ -100,20 +108,6 @@ QuicHandleExtraData(
         PercentileStats.P99p999,
         PercentileStats.P99p9999,
         LatencyStats.Max);
-
-    GetStatistics((uint32_t*)DownloadTimeData, MaxCount, &DownloadTimeStats, &DownloadTimePercentileStats);
-    WriteOutput(
-        "Result: %u RPS, Download Time,us 0th: %d, 50th: %.0f, 90th: %.0f, 99th: %.0f, 99.9th: %.0f, 99.99th: %.0f, 99.999th: %.0f, 99.9999th: %.0f, Max: %d\n",
-        RPS,
-        DownloadTimeStats.Min,
-        DownloadTimePercentileStats.P50,
-        DownloadTimePercentileStats.P90,
-        DownloadTimePercentileStats.P99,
-        DownloadTimePercentileStats.P99p9,
-        DownloadTimePercentileStats.P99p99,
-        DownloadTimePercentileStats.P99p999,
-        DownloadTimePercentileStats.P99p9999,
-        DownloadTimeStats.Max);
 
     if (FileName != nullptr) {
 #ifdef _WIN32
@@ -167,10 +161,16 @@ QuicUserMain(
 
     if (const uint32_t DataLength = QuicMainGetExtraDataLength(); DataLength) {
         auto Buffer = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength]);
-        auto DownloadTimeBuffer = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength]);
+
+        auto QuicTimeStamps = std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>>();
+        for (const auto i : {"StartTime", "RecvStartTime", "SendEndTime", "RecvEndTime"})
+        {
+            QuicTimeStamps[i] = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength]);
+            CXPLAT_FRE_ASSERT(QuicTimeStamps[i].get() != nullptr);
+        }
         CXPLAT_FRE_ASSERT(Buffer.get() != nullptr);
-        QuicMainGetExtraData(Buffer.get(), DownloadTimeBuffer.get(), DataLength);
-        QuicHandleExtraData(Buffer.get(), DownloadTimeBuffer.get(), DataLength, FileName);
+        QuicMainGetExtraData(Buffer.get(), QuicTimeStamps, DataLength);
+        QuicHandleExtraData(Buffer.get(), QuicTimeStamps, DataLength, FileName);
     }
 
 Exit:
