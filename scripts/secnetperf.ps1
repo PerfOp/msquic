@@ -116,7 +116,8 @@ if ($isWindows -and $NoLogs) {
 }
 
 $useXDP = ($io -eq "xdp" -or $io -eq "qtip")
-if ($RemotePowershellSupported -eq $true) {
+# davidxie: assume remote powershell is supported
+if ($true) {
 
     # Set up the connection to the peer over remote powershell.
     Write-Host "Connecting to $RemoteName"
