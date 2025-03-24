@@ -73,7 +73,6 @@ struct PerfClientStream {
     uint64_t BytesOutstanding {0};
     uint64_t BytesAcked {0};
     uint64_t BytesReceived {0};
-    uint64_t WholeLatency{ 0 };
     bool SendComplete {false};
     QUIC_BUFFER LastBuffer;
     QUIC_STATUS QuicStreamCallback(_Inout_ QUIC_STREAM_EVENT* Event);
