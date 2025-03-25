@@ -60,22 +60,43 @@ QuicHandleExtraData(
     printf("BEGIN exporting latency counters to .csv files\n");
 
     std::vector<uint8_t> buffer;
-    std::string tableHeader = "index,latency_values,start_time,recv_start_time,send_end_time,recv_end_time\n";
+    std::string tableHeader = std::string("index,latency_values,start_time,recv_start_time,send_end_time,recv_end_time") +
+                            // Extra counters
+                              std::string("ConnBlockedBySchedulingUs,ConnBlockedByPacingUs,ConnBlockedByAmplificationProtUs,ConnBlockedByCongestionControlUs,ConnBlockedByFlowControlUs,StreamBlockedByIdFlowControlUs,StreamBlockedByFlowControlUs,StreamBlockedByAppUs,SendFramesMaxStream,SendAborted,SendReliableAborted,SendRecvAborted,SendRetryPackets,SendBlockedPackets\n");
     buffer.insert(buffer.end(), tableHeader.begin(), tableHeader.end());
     // Convert raw counters to csv-formatted table
     auto &StartTime = ExtraTimestamp[std::string("StartTime")];
     auto &RecvStartTime = ExtraTimestamp[std::string("RecvStartTime")];
     auto &SendEndTime = ExtraTimestamp[std::string("SendEndTime")];
     auto &RecvEndTime = ExtraTimestamp[std::string("RecvEndTime")];
+    auto &ExtraCounters = ExtraTimestamp[std::string("ExtraCounters")];
+
     for (uint32_t i = 0; i < MaxCount; i++)
     {
+
         std::string row =
             std::to_string(i) + "," +
-            std::to_string((unsigned int)((uint32_t*)ExtraData)[i]) + "," +
-            std::to_string((unsigned int)((uint32_t*)StartTime.get())[i]) + "," +
-            std::to_string((unsigned int)((uint32_t*)RecvStartTime.get())[i]) + "," +
-            std::to_string((unsigned int)((uint32_t*)SendEndTime.get())[i]) + "," +
-            std::to_string((unsigned int)((uint32_t*)RecvEndTime.get())[i]) + "\n";
+            std::to_string(((uint32_t*)ExtraData)[i]) + "," +
+            std::to_string(((uint32_t*)StartTime.get())[i]) + "," +
+            std::to_string(((uint32_t*)RecvStartTime.get())[i]) + "," +
+            std::to_string(((uint32_t*)SendEndTime.get())[i]) + "," +
+            std::to_string(((uint32_t*)RecvEndTime.get())[i]) + ",";
+
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].ConnBlockedBySchedulingUs) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].ConnBlockedByPacingUs) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].ConnBlockedByAmplificationProtUs) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].ConnBlockedByCongestionControlUs) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].ConnBlockedByFlowControlUs) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].StreamBlockedByIdFlowControlUs) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].StreamBlockedByFlowControlUs) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].StreamBlockedByAppUs) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendFramesMaxStream) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendAborted) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendReliableAborted) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendRecvAborted) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendRetryPackets) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendBlockedPackets) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendBlockedPackets) + "\n";
 
         buffer.insert(buffer.end(), row.begin(), row.end());
     }
@@ -161,14 +182,17 @@ QuicUserMain(
 
     if (const uint32_t DataLength = QuicMainGetExtraDataLength(); DataLength) {
         auto Buffer = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength]);
-
+        CXPLAT_FRE_ASSERT(Buffer.get() != nullptr);
+        // davidxie: allocate buffer to store new data
         auto QuicTimeStamps = std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>>();
         for (const auto i : {"StartTime", "RecvStartTime", "SendEndTime", "RecvEndTime"})
         {
             QuicTimeStamps[i] = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength]);
             CXPLAT_FRE_ASSERT(QuicTimeStamps[i].get() != nullptr);
         }
-        CXPLAT_FRE_ASSERT(Buffer.get() != nullptr);
+
+        QuicTimeStamps["ExtraCounters"] = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[((uint32_t)(DataLength / sizeof(uint32_t)) + 1) * sizeof(QUIC_STREAM_STATISTICS)]);
+        CXPLAT_FRE_ASSERT(QuicTimeStamps["ExtraCounters"].get() != nullptr);
         QuicMainGetExtraData(Buffer.get(), QuicTimeStamps, DataLength);
         QuicHandleExtraData(Buffer.get(), QuicTimeStamps, DataLength, FileName);
     }

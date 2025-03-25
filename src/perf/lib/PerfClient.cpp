@@ -520,10 +520,12 @@ PerfClient::GetExtraData(
     CxPlatCopyMemory(Data, LatencyValues.get(), (size_t)(Count * sizeof(uint32_t)));
 
     // Due to how LatencyValues and DownloadTimeValues are written, if first N values of LatencyValues is valid, then first N values of ExtraTimestamp["kind"] is also valid.
+    // davidxie: copy extra timestamps for csv output
     CxPlatCopyMemory(ExtraTimestamp["StartTime"].get(), StartTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
     CxPlatCopyMemory(ExtraTimestamp["RecvStartTime"].get(), RecvStartTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
     CxPlatCopyMemory(ExtraTimestamp["SendEndTime"].get(), SendEndTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
     CxPlatCopyMemory(ExtraTimestamp["RecvEndTime"].get(), RecvEndTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
+    CxPlatCopyMemory(ExtraTimestamp["ExtraCounters"].get(), ExtraCounters.get(), (size_t)(Count * sizeof(QUIC_STREAM_STATISTICS)));
 }
 
 void
@@ -1091,44 +1093,45 @@ PerfClientStream::OnShutdown() {
                 const auto Latency = CxPlatTimeDiff64(StartTime, RecvEndTime);
                 Client.LatencyValues[(size_t)Index] = Latency > UINT32_MAX ? UINT32_MAX : (uint32_t)Latency;
                 // davidxie: export lowest 32 bits of timestamp counters for latency plotting.
+                // If overall latency is less than 4 seconds (UINT32_MAX microseconds), counter values are valid
                 Client.StartTimeValues[(size_t)Index] = (uint32_t)(StartTime & UINT32_MAX);
                 Client.RecvStartTimeValues[(size_t)Index] = (uint32_t)(RecvStartTime & UINT32_MAX);
                 Client.SendEndTimeValues[(size_t)Index] = (uint32_t)(SendEndTime & UINT32_MAX);
                 Client.RecvEndTimeValues[(size_t)Index] = (uint32_t)(RecvEndTime & UINT32_MAX);
                 //hjwang
                 QuicPrintStreamStatistics(MsQuic, Handle, &Client.ExtraCounters[(size_t)Index]);
-
-                if (Latency > 10000) {
-                    WriteOutput(
-                        "Stream Timings (flow blocked):\n"
-                        "  Latency:                  %llu us\n"
-                        "  SCHEDULING:               %llu us\n"
-                        "  PACING:                   %llu us\n"
-                        "  AMPLIFICATION_PROT:       %llu us\n"
-                        "  CONGESTION_CONTROL:       %llu us\n"
-                        "  CONN_FLOW_CONTROL:        %llu us\n"
-                        "  STREAM_ID_FLOW_CONTROL:   %llu us\n"
-                        "  STREAM_FLOW_CONTROL:      %llu us\n"
-                        "  APP:                      %llu us\n",
-                        (unsigned long long)Latency,
-                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedBySchedulingUs,
-                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByPacingUs,
-                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByAmplificationProtUs,
-                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByCongestionControlUs,
-                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByFlowControlUs,
-                        (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByIdFlowControlUs,
-                        (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByFlowControlUs,
-                        (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByAppUs);
-
-                    WriteOutput(
-                        "Counters: %d %d %d %d %d %d\n",
-                        Client.ExtraCounters[(size_t)Index].SendFramesMaxStream,
-                        Client.ExtraCounters[(size_t)Index].SendAborted,
-                        Client.ExtraCounters[(size_t)Index].SendReliableAborted,
-                        Client.ExtraCounters[(size_t)Index].SendRecvAborted,
-                        Client.ExtraCounters[(size_t)Index].SendRetryPackets,
-                        Client.ExtraCounters[(size_t)Index].SendBlockedPackets);
-                }
+                // davidxie: do not print out counters on console; it will be exported to .csv file
+                // if (Latency > 1) {
+                //     WriteOutput(
+                //         "Stream Timings (flow blocked):\n"
+                //         "  Latency:                  %llu us\n"
+                //         "  SCHEDULING:               %llu us\n"
+                //         "  PACING:                   %llu us\n"
+                //         "  AMPLIFICATION_PROT:       %llu us\n"
+                //         "  CONGESTION_CONTROL:       %llu us\n"
+                //         "  CONN_FLOW_CONTROL:        %llu us\n"
+                //         "  STREAM_ID_FLOW_CONTROL:   %llu us\n"
+                //         "  STREAM_FLOW_CONTROL:      %llu us\n"
+                //         "  APP:                      %llu us\n",
+                //         (unsigned long long)Latency,
+                //         (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedBySchedulingUs,
+                //         (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByPacingUs,
+                //         (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByAmplificationProtUs,
+                //         (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByCongestionControlUs,
+                //         (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByFlowControlUs,
+                //         (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByIdFlowControlUs,
+                //         (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByFlowControlUs,
+                //         (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByAppUs);
+                //
+                //     WriteOutput(
+                //         "Counters: %d %d %d %d %d %d\n",
+                //         Client.ExtraCounters[(size_t)Index].SendFramesMaxStream,
+                //         Client.ExtraCounters[(size_t)Index].SendAborted,
+                //         Client.ExtraCounters[(size_t)Index].SendReliableAborted,
+                //         Client.ExtraCounters[(size_t)Index].SendRecvAborted,
+                //         Client.ExtraCounters[(size_t)Index].SendRetryPackets,
+                //         Client.ExtraCounters[(size_t)Index].SendBlockedPackets);
+                // }
                 InterlockedIncrement64((int64_t*)&Connection.Client.LatencyCount);
             }
         }
