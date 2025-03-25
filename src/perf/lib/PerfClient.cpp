@@ -1080,16 +1080,16 @@ PerfClientStream::OnShutdown() {
             if (Index < Client.MaxLatencyIndex) {
                 const auto Latency = CxPlatTimeDiff64(StartTime, RecvEndTime);
                 Client.LatencyValues[(size_t)Index] = Latency > UINT32_MAX ? UINT32_MAX : (uint32_t)Latency;
-                // davidxie: export timestamp counters for latency plotting
+                // davidxie: export lowest 32 bits of timestamp counters for latency plotting.
                 Client.StartTimeValues[(size_t)Index] = (uint32_t)(StartTime & UINT32_MAX);
                 Client.RecvStartTimeValues[(size_t)Index] = (uint32_t)(RecvStartTime & UINT32_MAX);
                 Client.SendEndTimeValues[(size_t)Index] = (uint32_t)(SendEndTime & UINT32_MAX);
                 Client.RecvEndTimeValues[(size_t)Index] = (uint32_t)(RecvEndTime & UINT32_MAX);
                 InterlockedIncrement64((int64_t*)&Connection.Client.LatencyCount);
-                if (Latency > 10000) {
-                    printf("Latency value is %lluus \n", Latency);
-                    QuicPrintStreamStatistics(MsQuic, Handle);
-                }
+                // if (Latency > 10000) {
+                //     printf("Latency value is %lluus \n", Latency);
+                //     QuicPrintStreamStatistics(MsQuic, Handle);
+                // }
             }
         }
         InterlockedIncrement64((int64_t*)&Connection.Worker.StreamsCompleted);
