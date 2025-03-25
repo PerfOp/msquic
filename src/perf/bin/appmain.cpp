@@ -60,7 +60,7 @@ QuicHandleExtraData(
     printf("BEGIN exporting latency counters to .csv files\n");
 
     std::vector<uint8_t> buffer;
-    std::string tableHeader = std::string("index,latency_values,start_time,recv_start_time,send_end_time,recv_end_time") +
+    std::string tableHeader = std::string("index,latency_values,start_time,recv_start_time,send_end_time,recv_end_time,") +
                             // Extra counters
                               std::string("ConnBlockedBySchedulingUs,ConnBlockedByPacingUs,ConnBlockedByAmplificationProtUs,ConnBlockedByCongestionControlUs,ConnBlockedByFlowControlUs,StreamBlockedByIdFlowControlUs,StreamBlockedByFlowControlUs,StreamBlockedByAppUs,SendFramesMaxStream,SendAborted,SendReliableAborted,SendRecvAborted,SendRetryPackets,SendBlockedPackets\n");
     buffer.insert(buffer.end(), tableHeader.begin(), tableHeader.end());
@@ -95,7 +95,6 @@ QuicHandleExtraData(
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendReliableAborted) + ",";
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendRecvAborted) + ",";
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendRetryPackets) + ",";
-        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendBlockedPackets) + ",";
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendBlockedPackets) + "\n";
 
         buffer.insert(buffer.end(), row.begin(), row.end());
