@@ -789,6 +789,13 @@ typedef struct QUIC_STREAM_STATISTICS {
     uint64_t StreamBlockedByIdFlowControlUs;
     uint64_t StreamBlockedByFlowControlUs;
     uint64_t StreamBlockedByAppUs;
+    //hjwang:
+    uint32_t SendFramesMaxStream;
+    uint32_t SendAborted;
+    uint32_t SendReliableAborted;
+    uint32_t SendRecvAborted;
+    uint32_t SendRetryPackets;
+    uint32_t SendBlockedPackets;
 } QUIC_STREAM_STATISTICS;
 
 //

@@ -42,7 +42,9 @@ Abstract:
 #define PERF_DEFAULT_IO_SIZE                0x10000
 
 #define PERF_MAX_THREAD_COUNT               128
-#define PERF_MAX_REQUESTS_PER_SECOND        2000000 // best guess - must increase if we can do better
+// #define PERF_MAX_REQUESTS_PER_SECOND        2000000 // best guess - must increase if we can do better
+//hjwang
+#define PERF_MAX_REQUESTS_PER_SECOND        200000 // best guess - must increase if we can do better
 
 typedef enum TCP_EXECUTION_PROFILE {
     TCP_EXECUTION_PROFILE_LOW_LATENCY,
@@ -202,12 +204,19 @@ inline
 void
 QuicPrintStreamStatistics(
     _In_ const QUIC_API_TABLE* ApiTable,
-    _In_ HQUIC Stream
+    _In_ HQUIC Stream,
+    _In_ QUIC_STREAM_STATISTICS* InputStats
     )
 {
+    //hjwang
+    /*
     QUIC_STREAM_STATISTICS Stats = {0};
     uint32_t BufferLength = sizeof(Stats);
     ApiTable->GetParam(Stream, QUIC_PARAM_STREAM_STATISTICS, &BufferLength, &Stats);
+    */
+    uint32_t BufferLength = sizeof(QUIC_STREAM_STATISTICS);
+    ApiTable->GetParam(Stream, QUIC_PARAM_STREAM_STATISTICS, &BufferLength, InputStats);
+    /*
     WriteOutput(
         "Stream Timings (flow blocked):\n"
         "  SCHEDULING:               %llu us\n"
@@ -218,12 +227,22 @@ QuicPrintStreamStatistics(
         "  STREAM_ID_FLOW_CONTROL:   %llu us\n"
         "  STREAM_FLOW_CONTROL:      %llu us\n"
         "  APP:                      %llu us\n",
-        (unsigned long long)Stats.ConnBlockedBySchedulingUs,
-        (unsigned long long)Stats.ConnBlockedByPacingUs,
-        (unsigned long long)Stats.ConnBlockedByAmplificationProtUs,
-        (unsigned long long)Stats.ConnBlockedByCongestionControlUs,
-        (unsigned long long)Stats.ConnBlockedByFlowControlUs,
-        (unsigned long long)Stats.StreamBlockedByIdFlowControlUs,
-        (unsigned long long)Stats.StreamBlockedByFlowControlUs,
-        (unsigned long long)Stats.StreamBlockedByAppUs);
+        (unsigned long long)InputStats->ConnBlockedBySchedulingUs,
+        (unsigned long long)InputStats->ConnBlockedByPacingUs,
+        (unsigned long long)InputStats->ConnBlockedByAmplificationProtUs,
+        (unsigned long long)InputStats->ConnBlockedByCongestionControlUs,
+        (unsigned long long)InputStats->ConnBlockedByFlowControlUs,
+        (unsigned long long)InputStats->StreamBlockedByIdFlowControlUs,
+        (unsigned long long)InputStats->StreamBlockedByFlowControlUs,
+        (unsigned long long)InputStats->StreamBlockedByAppUs);
+
+    WriteOutput(
+        "Counters: %d %d %d %d %d %d\n",
+        InputStats->SendFramesMaxStream,
+        InputStats->SendAborted,
+        InputStats->SendReliableAborted,
+        InputStats->SendRecvAborted,
+        InputStats->SendRetryPackets,
+        InputStats->SendBlockedPackets);
+*/
 }

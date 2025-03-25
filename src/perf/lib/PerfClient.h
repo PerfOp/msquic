@@ -153,10 +153,14 @@ struct PerfClient {
     uint64_t CurLatencyIndex {0};
     uint64_t LatencyCount {0}; // Also used for the count of DownloadTimeValues array
     UniquePtr<uint32_t[]> LatencyValues {nullptr}; // TODO - Move to Worker
+    //davidxie
     UniquePtr<uint32_t[]> StartTimeValues {nullptr}; // Lowest 32 bits of uint64_t StartTime {CxPlatTimeUs64()};
     UniquePtr<uint32_t[]> RecvStartTimeValues {nullptr}; // Lowest 32 bits of uint64_t RecvStartTime {0};
     UniquePtr<uint32_t[]> SendEndTimeValues {nullptr}; // Lowest 32 bits of uint64_t SendEndTime {0};
     UniquePtr<uint32_t[]> RecvEndTimeValues {nullptr}; // Lowest 32 bits of uint64_t RecvEndTime {0};
+    //hjwang
+    UniquePtr<QUIC_STREAM_STATISTICS[]> ExtraCounters {nullptr};
+
     PerfClientWorker Workers[PERF_MAX_THREAD_COUNT];
 
     UniquePtr<TcpEngine> Engine;

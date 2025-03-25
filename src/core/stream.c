@@ -139,6 +139,14 @@ QuicStreamInitialize(
         goto Exit;
     }
 
+    //hjwang
+    Stream->BlockedTimings.SendFramesMaxStream=0;
+    Stream->BlockedTimings.SendAborted=0;
+    Stream->BlockedTimings.SendReliableAborted=0;
+    Stream->BlockedTimings.SendRecvAborted=0;
+    Stream->BlockedTimings.SendRetryPackets=0;
+    Stream->BlockedTimings.SendBlockedPackets=0;
+
     Stream->MaxAllowedRecvOffset = Stream->RecvBuffer.VirtualBufferLength;
     Stream->RecvWindowLastUpdate = CxPlatTimeUs64();
 
@@ -907,6 +915,14 @@ QuicStreamParamGet(
                 CxPlatTimeDiff64(Connection->BlockedTimings.FlowControl.LastStartTimeUs, Now);
         }
         Stats->ConnBlockedByFlowControlUs -= Stream->BlockedTimings.CachedConnFlowControlUs;
+
+        //hjwang
+        Stats->SendFramesMaxStream = Stream->BlockedTimings.SendFramesMaxStream;
+        Stats->SendAborted = Stream->BlockedTimings.SendAborted;
+        Stats->SendReliableAborted = Stream->BlockedTimings.SendReliableAborted;
+        Stats->SendRecvAborted = Stream->BlockedTimings.SendRecvAborted;
+        Stats->SendRetryPackets = Stream->BlockedTimings.SendRetryPackets;
+        Stats->SendBlockedPackets = Stream->BlockedTimings.SendBlockedPackets;
 
         *BufferLength = sizeof(QUIC_STREAM_STATISTICS);
         Status = QUIC_STATUS_SUCCESS;

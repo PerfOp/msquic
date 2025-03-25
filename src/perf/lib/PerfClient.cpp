@@ -340,11 +340,13 @@ PerfClient::Init(
                 WriteOutput("Warning! Limiting request latency tracking to %llu requests\n",
                     (unsigned long long)MaxLatencyIndex);
             }
-        } else {
+        }
+        else {
             MaxLatencyIndex = ConnectionCount * StreamCount;
         }
 
         UniquePtr<uint32_t[]>* arr[] = {&LatencyValues, &StartTimeValues, &RecvStartTimeValues, &SendEndTimeValues, &RecvEndTimeValues};
+        //davidxie
         for (auto i : arr)
         {
             *i = UniquePtr<uint32_t[]>(new(std::nothrow) uint32_t[(size_t)MaxLatencyIndex]);
@@ -354,6 +356,13 @@ PerfClient::Init(
             }
             CxPlatZeroMemory(i->get(), (size_t)(sizeof(uint32_t) * MaxLatencyIndex));
         }
+
+        //hjwang
+        ExtraCounters = UniquePtr<QUIC_STREAM_STATISTICS[]>(new(std::nothrow) QUIC_STREAM_STATISTICS[(size_t)MaxLatencyIndex]);
+        if (ExtraCounters == nullptr) {
+            return QUIC_STATUS_OUT_OF_MEMORY;
+        }
+        CxPlatZeroMemory(ExtraCounters.get(), (size_t)(sizeof(QUIC_STREAM_STATISTICS) * MaxLatencyIndex));
     }
 
     return QUIC_STATUS_SUCCESS;
@@ -984,7 +993,8 @@ PerfClientStream::OnSendShutdown(uint64_t Now) {
         if (Connection.Client.UseTCP) {
             // TODO - Print TCP stream stats
         } else {
-            QuicPrintStreamStatistics(MsQuic, Handle);
+            //hjwang
+            //QuicPrintStreamStatistics(MsQuic, Handle);
         }
     }
     if (RecvEndTime) {
@@ -1085,11 +1095,41 @@ PerfClientStream::OnShutdown() {
                 Client.RecvStartTimeValues[(size_t)Index] = (uint32_t)(RecvStartTime & UINT32_MAX);
                 Client.SendEndTimeValues[(size_t)Index] = (uint32_t)(SendEndTime & UINT32_MAX);
                 Client.RecvEndTimeValues[(size_t)Index] = (uint32_t)(RecvEndTime & UINT32_MAX);
+                //hjwang
+                QuicPrintStreamStatistics(MsQuic, Handle, &Client.ExtraCounters[(size_t)Index]);
+
+                if (Latency > 10000) {
+                    WriteOutput(
+                        "Stream Timings (flow blocked):\n"
+                        "  Latency:                  %llu us\n"
+                        "  SCHEDULING:               %llu us\n"
+                        "  PACING:                   %llu us\n"
+                        "  AMPLIFICATION_PROT:       %llu us\n"
+                        "  CONGESTION_CONTROL:       %llu us\n"
+                        "  CONN_FLOW_CONTROL:        %llu us\n"
+                        "  STREAM_ID_FLOW_CONTROL:   %llu us\n"
+                        "  STREAM_FLOW_CONTROL:      %llu us\n"
+                        "  APP:                      %llu us\n",
+                        (unsigned long long)Latency,
+                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedBySchedulingUs,
+                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByPacingUs,
+                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByAmplificationProtUs,
+                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByCongestionControlUs,
+                        (unsigned long long)Client.ExtraCounters[(size_t)Index].ConnBlockedByFlowControlUs,
+                        (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByIdFlowControlUs,
+                        (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByFlowControlUs,
+                        (unsigned long long)Client.ExtraCounters[(size_t)Index].StreamBlockedByAppUs);
+
+                    WriteOutput(
+                        "Counters: %d %d %d %d %d %d\n",
+                        Client.ExtraCounters[(size_t)Index].SendFramesMaxStream,
+                        Client.ExtraCounters[(size_t)Index].SendAborted,
+                        Client.ExtraCounters[(size_t)Index].SendReliableAborted,
+                        Client.ExtraCounters[(size_t)Index].SendRecvAborted,
+                        Client.ExtraCounters[(size_t)Index].SendRetryPackets,
+                        Client.ExtraCounters[(size_t)Index].SendBlockedPackets);
+                }
                 InterlockedIncrement64((int64_t*)&Connection.Client.LatencyCount);
-                // if (Latency > 10000) {
-                //     printf("Latency value is %lluus \n", Latency);
-                //     QuicPrintStreamStatistics(MsQuic, Handle);
-                // }
             }
         }
         InterlockedIncrement64((int64_t*)&Connection.Worker.StreamsCompleted);

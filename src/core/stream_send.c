@@ -1120,6 +1120,9 @@ QuicStreamSendWrite(
                 AvailableBufferLength,
                 Builder->Datagram->Buffer)) {
 
+            //hjwang
+            Stream->BlockedTimings.SendFramesMaxStream = Stream->BlockedTimings.SendFramesMaxStream + 1;
+
             Stream->SendFlags &= ~QUIC_STREAM_SEND_FLAG_MAX_DATA;
             if (QuicPacketBuilderAddStreamFrame(Builder, Stream, QUIC_FRAME_MAX_STREAM_DATA)) {
                 return TRUE;
@@ -1137,6 +1140,8 @@ QuicStreamSendWrite(
                 &Builder->DatagramLength,
                 AvailableBufferLength,
                 Builder->Datagram->Buffer)) {
+            //hjwang
+            Stream->BlockedTimings.SendAborted = Stream->BlockedTimings.SendAborted + 1;
 
             Stream->SendFlags &= ~QUIC_STREAM_SEND_FLAG_SEND_ABORT;
             if (QuicPacketBuilderAddStreamFrame(Builder, Stream, QUIC_FRAME_RESET_STREAM)) {
@@ -1155,6 +1160,8 @@ QuicStreamSendWrite(
                 &Builder->DatagramLength,
                 AvailableBufferLength,
                 Builder->Datagram->Buffer)) {
+            //hjwang
+            Stream->BlockedTimings.SendReliableAborted = Stream->BlockedTimings.SendReliableAborted + 1;
 
             Stream->SendFlags &= ~QUIC_STREAM_SEND_FLAG_RELIABLE_ABORT;
             if (QuicPacketBuilderAddStreamFrame(Builder, Stream, QUIC_FRAME_RELIABLE_RESET_STREAM)) {
@@ -1174,6 +1181,8 @@ QuicStreamSendWrite(
                 &Builder->DatagramLength,
                 AvailableBufferLength,
                 Builder->Datagram->Buffer)) {
+            //hjwang
+            Stream->BlockedTimings.SendRecvAborted = Stream->BlockedTimings.SendRecvAborted + 1;
 
             Stream->SendFlags &= ~QUIC_STREAM_SEND_FLAG_RECV_ABORT;
             if (QuicPacketBuilderAddStreamFrame(Builder, Stream, QUIC_FRAME_STOP_SENDING)) {
@@ -1194,6 +1203,9 @@ QuicStreamSendWrite(
             Builder->Metadata,
             &StreamFrameLength,
             Builder->Datagram->Buffer + Builder->DatagramLength);
+
+        //hjwang
+        Stream->BlockedTimings.SendRetryPackets = Stream->BlockedTimings.SendRetryPackets+1;
 
         if (StreamFrameLength > 0) {
             CXPLAT_DBG_ASSERT(StreamFrameLength <= AvailableBufferLength - Builder->DatagramLength);
@@ -1220,6 +1232,9 @@ QuicStreamSendWrite(
                 &Builder->DatagramLength,
                 AvailableBufferLength,
                 Builder->Datagram->Buffer)) {
+
+            //hjwang
+            Stream->BlockedTimings.SendBlockedPackets = Stream->BlockedTimings.SendBlockedPackets + 1;
 
             Stream->SendFlags &= ~QUIC_STREAM_SEND_FLAG_DATA_BLOCKED;
             if (QuicPacketBuilderAddStreamFrame(Builder, Stream, QUIC_FRAME_STREAM_DATA_BLOCKED)) {

@@ -447,6 +447,13 @@ typedef struct QUIC_STREAM {
         uint64_t CachedConnAmplificationProtUs;
         uint64_t CachedConnCongestionControlUs;
         uint64_t CachedConnFlowControlUs;
+        //hjwang:
+        uint32_t SendFramesMaxStream;
+        uint32_t SendAborted;
+        uint32_t SendReliableAborted;
+        uint32_t SendRecvAborted;
+        uint32_t SendRetryPackets;
+        uint32_t SendBlockedPackets;
     } BlockedTimings;
 } QUIC_STREAM;
 
