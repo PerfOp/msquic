@@ -796,6 +796,7 @@ typedef struct QUIC_STREAM_STATISTICS {
     uint32_t SendRecvAborted;
     uint32_t SendRetryPackets;
     uint32_t SendBlockedPackets;
+    uint64_t CachedSentDoneUs;
 } QUIC_STREAM_STATISTICS;
 
 //

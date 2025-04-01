@@ -1449,6 +1449,15 @@ QuicSendFlush(
     } while (Builder.SendData != NULL ||
         Builder.TotalCountDatagrams < QUIC_MAX_DATAGRAMS_PER_SEND);
 
+    //hjwang
+    if (Stream != NULL)
+    {
+        uint64_t ThisNow = CxPlatTimeUs64();
+        Stream->BlockedTimings.CachedSentDoneUs =
+            ThisNow > (Stream->BlockedTimings.CachedSentDoneUs) ?
+            ThisNow: Stream->BlockedTimings.CachedSentDoneUs;
+    }
+
     if (Builder.SendData != NULL) {
         //
         // Final send, if there is anything left over.

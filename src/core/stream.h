@@ -454,6 +454,7 @@ typedef struct QUIC_STREAM {
         uint32_t SendRecvAborted;
         uint32_t SendRetryPackets;
         uint32_t SendBlockedPackets;
+        uint64_t CachedSentDoneUs;
     } BlockedTimings;
 } QUIC_STREAM;
 

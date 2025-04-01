@@ -146,6 +146,7 @@ QuicStreamInitialize(
     Stream->BlockedTimings.SendRecvAborted=0;
     Stream->BlockedTimings.SendRetryPackets=0;
     Stream->BlockedTimings.SendBlockedPackets=0;
+    Stream->BlockedTimings.CachedSentDoneUs = 0;
 
     Stream->MaxAllowedRecvOffset = Stream->RecvBuffer.VirtualBufferLength;
     Stream->RecvWindowLastUpdate = CxPlatTimeUs64();
@@ -923,6 +924,7 @@ QuicStreamParamGet(
         Stats->SendRecvAborted = Stream->BlockedTimings.SendRecvAborted;
         Stats->SendRetryPackets = Stream->BlockedTimings.SendRetryPackets;
         Stats->SendBlockedPackets = Stream->BlockedTimings.SendBlockedPackets;
+        Stats->CachedSentDoneUs = Stream->BlockedTimings.CachedSentDoneUs;
 
         *BufferLength = sizeof(QUIC_STREAM_STATISTICS);
         Status = QUIC_STATUS_SUCCESS;
