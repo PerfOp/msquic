@@ -205,7 +205,7 @@ void
 QuicPrintStreamStatistics(
     _In_ const QUIC_API_TABLE* ApiTable,
     _In_ HQUIC Stream,
-    _In_ QUIC_STREAM_STATISTICS* InputStats
+    _Out_ QUIC_STREAM_STATISTICS* InputStats
     )
 {
     //hjwang
