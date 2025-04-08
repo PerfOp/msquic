@@ -1280,6 +1280,8 @@ QuicSendFlush(
     uint32_t PrevSendFlags = UINT32_MAX;        // N-1
     uint32_t PrevPrevSendFlags = UINT32_MAX;    // N-2
 #endif
+    //hjwang
+    BOOLEAN sentWorkload = FALSE;
 
     do {
 
@@ -1394,6 +1396,8 @@ QuicSendFlush(
             // Write the stream frames.
             //
             WrotePacketFrames |= QuicStreamSendWrite(Stream, &Builder);
+            //hjwang
+            sentWorkload = TRUE;
 
             if (Stream->SendFlags == 0 && Stream->SendLink.Flink != NULL) {
                 //
@@ -1450,7 +1454,7 @@ QuicSendFlush(
         Builder.TotalCountDatagrams < QUIC_MAX_DATAGRAMS_PER_SEND);
 
     //hjwang
-    if (Stream != NULL)
+    if (Stream != NULL && sentWorkload)
     {
         uint64_t ThisNow = CxPlatTimeUs64();
         Stream->BlockedTimings.CachedSentDoneUs =
