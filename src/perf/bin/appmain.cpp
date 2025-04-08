@@ -62,7 +62,7 @@ QuicHandleExtraData(
     std::vector<uint8_t> buffer;
     std::string tableHeader = std::string("index,latency_values,start_time,recv_start_time,send_end_time,recv_end_time,") +
                             // Extra counters
-                              std::string("ConnBlockedBySchedulingUs,ConnBlockedByPacingUs,ConnBlockedByAmplificationProtUs,ConnBlockedByCongestionControlUs,ConnBlockedByFlowControlUs,StreamBlockedByIdFlowControlUs,StreamBlockedByFlowControlUs,StreamBlockedByAppUs,SendFramesMaxStream,SendAborted,SendReliableAborted,SendRecvAborted,SendRetryPackets,SendBlockedPackets\n");
+                              std::string("ConnBlockedBySchedulingUs,ConnBlockedByPacingUs,ConnBlockedByAmplificationProtUs,ConnBlockedByCongestionControlUs,ConnBlockedByFlowControlUs,StreamBlockedByIdFlowControlUs,StreamBlockedByFlowControlUs,StreamBlockedByAppUs,SendFramesMaxStream,SendAborted,SendReliableAborted,SendRecvAborted,SendRetryPackets,SendBlockedPackets,CachedSentDoneUs\n");
     buffer.insert(buffer.end(), tableHeader.begin(), tableHeader.end());
     // Convert raw counters to csv-formatted table
     auto &StartTime = ExtraTimestamp[std::string("StartTime")];
@@ -95,7 +95,8 @@ QuicHandleExtraData(
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendReliableAborted) + ",";
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendRecvAborted) + ",";
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendRetryPackets) + ",";
-        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendBlockedPackets) + "\n";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].SendBlockedPackets) + ",";
+        row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].CachedSentDoneUs) + "\n";
 
         buffer.insert(buffer.end(), row.begin(), row.end());
     }
