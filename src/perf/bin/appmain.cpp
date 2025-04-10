@@ -60,7 +60,7 @@ QuicHandleExtraData(
     printf("BEGIN exporting latency counters to .csv files\n");
 
     std::vector<uint8_t> buffer;
-    std::string tableHeader = std::string("index,latency_values,start_time,recv_start_time,send_end_time,recv_end_time,") +
+    std::string tableHeader = std::string("index,latency_values,start_time,recv_start_time,send_end_time,recv_end_time,SendRetransmittablePackets,QuicLossDetectionRetransmitFramesCount,SendSuspectedLostPackets,SendSpuriousLostPackets,SendCongestionCount,SendPersistentCongestionCount,RecvReorderedPackets,RecvDroppedPackets,RecvDuplicatePackets,") +
                             // Extra counters
                               std::string("ConnBlockedBySchedulingUs,ConnBlockedByPacingUs,ConnBlockedByAmplificationProtUs,ConnBlockedByCongestionControlUs,ConnBlockedByFlowControlUs,StreamBlockedByIdFlowControlUs,StreamBlockedByFlowControlUs,StreamBlockedByAppUs,SendFramesMaxStream,SendAborted,SendReliableAborted,SendRecvAborted,SendRetryPackets,SendBlockedPackets,CachedSentDoneUs\n");
     buffer.insert(buffer.end(), tableHeader.begin(), tableHeader.end());
@@ -69,6 +69,17 @@ QuicHandleExtraData(
     auto &RecvStartTime = ExtraTimestamp[std::string("RecvStartTime")];
     auto &SendEndTime = ExtraTimestamp[std::string("SendEndTime")];
     auto &RecvEndTime = ExtraTimestamp[std::string("RecvEndTime")];
+
+    auto &SendRetransmittablePackets = ExtraTimestamp[std::string("SendRetransmittablePackets")];
+    auto &QuicLossDetectionRetransmitFramesCount = ExtraTimestamp[std::string("QuicLossDetectionRetransmitFramesCount")];
+    auto &SendSuspectedLostPackets = ExtraTimestamp[std::string("SendSuspectedLostPackets")];
+    auto &SendSpuriousLostPackets = ExtraTimestamp[std::string("SendSpuriousLostPackets")];
+    auto &SendCongestionCount = ExtraTimestamp[std::string("SendCongestionCount")];
+    auto &SendPersistentCongestionCount = ExtraTimestamp[std::string("SendPersistentCongestionCount")];
+    auto &RecvReorderedPackets = ExtraTimestamp[std::string("RecvReorderedPackets")];
+    auto &RecvDroppedPackets = ExtraTimestamp[std::string("RecvDroppedPackets")];
+    auto &RecvDuplicatePackets = ExtraTimestamp[std::string("RecvDuplicatePackets")];
+
     auto &ExtraCounters = ExtraTimestamp[std::string("ExtraCounters")];
 
     for (uint32_t i = 0; i < MaxCount; i++)
@@ -80,7 +91,16 @@ QuicHandleExtraData(
             std::to_string(((uint32_t*)StartTime.get())[i]) + "," +
             std::to_string(((uint32_t*)RecvStartTime.get())[i]) + "," +
             std::to_string(((uint32_t*)SendEndTime.get())[i]) + "," +
-            std::to_string(((uint32_t*)RecvEndTime.get())[i]) + ",";
+            std::to_string(((uint32_t*)RecvEndTime.get())[i]) + "," +
+            std::to_string(((uint64_t*)SendRetransmittablePackets.get())[i]) + "," +
+            std::to_string(((uint64_t*)QuicLossDetectionRetransmitFramesCount.get())[i]) + "," +
+            std::to_string(((uint64_t*)SendSuspectedLostPackets.get())[i]) + "," +
+            std::to_string(((uint64_t*)SendSpuriousLostPackets.get())[i]) + "," +
+            std::to_string(((uint32_t*)SendCongestionCount.get())[i]) + "," +
+            std::to_string(((uint32_t*)SendPersistentCongestionCount.get())[i]) + "," +
+            std::to_string(((uint64_t*)RecvReorderedPackets.get())[i]) + "," +
+            std::to_string(((uint64_t*)RecvDroppedPackets.get())[i]) + "," +
+            std::to_string(((uint64_t*)RecvDuplicatePackets.get())[i]) + ",";
 
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].ConnBlockedBySchedulingUs) + ",";
         row += std::to_string(((QUIC_STREAM_STATISTICS*)ExtraCounters.get())[i].ConnBlockedByPacingUs) + ",";
@@ -185,12 +205,19 @@ QuicUserMain(
         CXPLAT_FRE_ASSERT(Buffer.get() != nullptr);
         // davidxie: allocate buffer to store new data
         auto QuicTimeStamps = std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>>();
-        for (const auto i : {"StartTime", "RecvStartTime", "SendEndTime", "RecvEndTime"})
+        // uint32_t counters
+        for (const auto i : {"StartTime", "RecvStartTime", "SendEndTime", "RecvEndTime", "SendCongestionCount", "SendPersistentCongestionCount"})
         {
             QuicTimeStamps[i] = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength]);
             CXPLAT_FRE_ASSERT(QuicTimeStamps[i].get() != nullptr);
         }
-
+        // uint64_t counters
+        for (const auto i : {"SendRetransmittablePackets", "QuicLossDetectionRetransmitFramesCount", "SendSuspectedLostPackets", "SendSpuriousLostPackets", "RecvReorderedPackets", "RecvDroppedPackets", "RecvDuplicatePackets"})
+        {
+            QuicTimeStamps[i] = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[DataLength * 2]);
+            CXPLAT_FRE_ASSERT(QuicTimeStamps[i].get() != nullptr);
+        }
+        // struct QUIC_STREAM_STATISTICS counters
         QuicTimeStamps["ExtraCounters"] = UniquePtr<uint8_t[]>(new (std::nothrow) uint8_t[((uint32_t)(DataLength / sizeof(uint32_t)) + 1) * sizeof(QUIC_STREAM_STATISTICS)]);
         CXPLAT_FRE_ASSERT(QuicTimeStamps["ExtraCounters"].get() != nullptr);
         QuicMainGetExtraData(Buffer.get(), QuicTimeStamps, DataLength);

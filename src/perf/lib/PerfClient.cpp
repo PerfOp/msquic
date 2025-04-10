@@ -344,9 +344,9 @@ PerfClient::Init(
         else {
             MaxLatencyIndex = ConnectionCount * StreamCount;
         }
-
-        UniquePtr<uint32_t[]>* arr[] = {&LatencyValues, &StartTimeValues, &RecvStartTimeValues, &SendEndTimeValues, &RecvEndTimeValues};
-        //davidxie
+        // davidxie Bulk initialization uint32_t[]
+        UniquePtr<uint32_t[]>* arr[] = {&LatencyValues, &StartTimeValues, &RecvStartTimeValues, &SendEndTimeValues, &RecvEndTimeValues, &SendCongestionCountValues, &SendPersistentCongestionCountValues};
+        // davidxie
         for (auto i : arr)
         {
             *i = UniquePtr<uint32_t[]>(new(std::nothrow) uint32_t[(size_t)MaxLatencyIndex]);
@@ -355,6 +355,19 @@ PerfClient::Init(
                 return QUIC_STATUS_OUT_OF_MEMORY;
             }
             CxPlatZeroMemory(i->get(), (size_t)(sizeof(uint32_t) * MaxLatencyIndex));
+        }
+
+        // davidxie Bulk initialization uint64_t[]
+        UniquePtr<uint64_t[]>* arr64[] = {&SendRetransmittablePacketsValues, &QuicLossDetectionRetransmitFramesCountValues, &SendSuspectedLostPacketsValues, &SendSpuriousLostPacketsValues, &RecvReorderedPacketsValues, &RecvDroppedPacketsValues, &RecvDuplicatePacketsValues};
+        // davidxie
+        for (auto i : arr64)
+        {
+            *i = UniquePtr<uint64_t[]>(new(std::nothrow) uint64_t[(size_t)MaxLatencyIndex]);
+            if (*i == nullptr)
+            {
+                return QUIC_STATUS_OUT_OF_MEMORY;
+            }
+            CxPlatZeroMemory(i->get(), (size_t)(sizeof(uint64_t) * MaxLatencyIndex));
         }
 
         //hjwang
@@ -526,6 +539,17 @@ PerfClient::GetExtraData(
     CxPlatCopyMemory(ExtraTimestamp["SendEndTime"].get(), SendEndTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
     CxPlatCopyMemory(ExtraTimestamp["RecvEndTime"].get(), RecvEndTimeValues.get(), (size_t)(Count * sizeof(uint32_t)));
     CxPlatCopyMemory(ExtraTimestamp["ExtraCounters"].get(), ExtraCounters.get(), (size_t)(Count * sizeof(QUIC_STREAM_STATISTICS)));
+
+    // davidxie: export pkt loss statistics
+    CxPlatCopyMemory(ExtraTimestamp["SendRetransmittablePackets"].get(), SendRetransmittablePacketsValues.get(), (size_t)(Count * sizeof(uint64_t)));
+    CxPlatCopyMemory(ExtraTimestamp["QuicLossDetectionRetransmitFramesCount"].get(), QuicLossDetectionRetransmitFramesCountValues.get(), (size_t)(Count * sizeof(uint64_t)));
+    CxPlatCopyMemory(ExtraTimestamp["SendSuspectedLostPackets"].get(), SendSuspectedLostPacketsValues.get(), (size_t)(Count * sizeof(uint64_t)));
+    CxPlatCopyMemory(ExtraTimestamp["SendSpuriousLostPackets"].get(), SendSpuriousLostPacketsValues.get(), (size_t)(Count * sizeof(uint64_t)));
+    CxPlatCopyMemory(ExtraTimestamp["SendCongestionCount"].get(), SendCongestionCountValues.get(), (size_t)(Count * sizeof(uint32_t)));
+    CxPlatCopyMemory(ExtraTimestamp["SendPersistentCongestionCount"].get(), SendPersistentCongestionCountValues.get(), (size_t)(Count * sizeof(uint32_t)));
+    CxPlatCopyMemory(ExtraTimestamp["RecvReorderedPackets"].get(), RecvReorderedPacketsValues.get(), (size_t)(Count * sizeof(uint64_t)));
+    CxPlatCopyMemory(ExtraTimestamp["RecvDroppedPackets"].get(), RecvDroppedPacketsValues.get(), (size_t)(Count * sizeof(uint64_t)));
+    CxPlatCopyMemory(ExtraTimestamp["RecvDuplicatePackets"].get(), RecvDuplicatePacketsValues.get(), (size_t)(Count * sizeof(uint64_t)));
 }
 
 void
@@ -1093,13 +1117,26 @@ PerfClientStream::OnShutdown() {
                 const auto Latency = CxPlatTimeDiff64(StartTime, RecvEndTime);
                 Client.LatencyValues[(size_t)Index] = Latency > UINT32_MAX ? UINT32_MAX : (uint32_t)Latency;
                 // davidxie: export lowest 32 bits of timestamp counters for latency plotting.
-                // If overall latency is less than 4 seconds (UINT32_MAX microseconds), counter values are valid
+                // If overall latency is less than 4294 seconds (UINT32_MAX microseconds), counter values are valid
                 Client.StartTimeValues[(size_t)Index] = (uint32_t)(StartTime & UINT32_MAX);
                 Client.RecvStartTimeValues[(size_t)Index] = (uint32_t)(RecvStartTime & UINT32_MAX);
                 Client.SendEndTimeValues[(size_t)Index] = (uint32_t)(SendEndTime & UINT32_MAX);
                 Client.RecvEndTimeValues[(size_t)Index] = (uint32_t)(RecvEndTime & UINT32_MAX);
                 //hjwang
                 QuicPrintStreamStatistics(MsQuic, Handle, &Client.ExtraCounters[(size_t)Index]);
+                // davidxie: export current connection stats to csv file (take delta value to observe increase in counters at what index)
+                QUIC_STATISTICS_V2 Stats;
+                uint32_t StatsSize = sizeof(Stats);
+                MsQuic->GetParam(Handle, QUIC_PARAM_CONN_STATISTICS_V2, &StatsSize, &Stats);
+                Client.SendRetransmittablePacketsValues[(size_t)Index] = Stats.SendRetransmittablePackets;
+                Client.QuicLossDetectionRetransmitFramesCountValues[(size_t)Index] = Stats.QuicLossDetectionRetransmitFramesCount;
+                Client.SendSuspectedLostPacketsValues[(size_t)Index] = Stats.SendSuspectedLostPackets;
+                Client.SendSpuriousLostPacketsValues[(size_t)Index] = Stats.SendSpuriousLostPackets;
+                Client.SendCongestionCountValues[(size_t)Index] = Stats.SendCongestionCount;
+                Client.SendPersistentCongestionCountValues[(size_t)Index] = Stats.SendPersistentCongestionCount;
+                Client.RecvReorderedPacketsValues[(size_t)Index] = Stats.RecvReorderedPackets;
+                Client.RecvDroppedPacketsValues[(size_t)Index] = Stats.RecvDroppedPackets;
+                Client.RecvDuplicatePacketsValues[(size_t)Index] = Stats.RecvDuplicatePackets;
                 // davidxie: do not print out counters on console; it will be exported to .csv file
                 // if (Latency > 1) {
                 //     WriteOutput(

@@ -685,8 +685,9 @@ QuicLossDetectionRetransmitFrames(
     )
 {
     QUIC_CONNECTION* Connection = QuicLossDetectionGetConnection(LossDetection);
+    // davidxie
+    Connection->Stats.Misc.QuicLossDetectionRetransmitFramesCount ++;
     BOOLEAN NewDataQueued = FALSE;
-
     for (uint8_t i = 0; i < Packet->FrameCount; i++) {
         switch (Packet->Frames[i].Type) {
         case QUIC_FRAME_PING:

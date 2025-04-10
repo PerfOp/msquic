@@ -562,6 +562,9 @@ typedef struct QUIC_STATISTICS_V2 {
 
     // N.B. New fields must be appended to end
 
+    // davidxie: number of QuicLossDetectionRetransmitFrames called
+    uint64_t QuicLossDetectionRetransmitFramesCount; // Number of times QuicLossDetectionRetransmitFrames is called
+
 } QUIC_STATISTICS_V2;
 
 #define QUIC_STRUCT_SIZE_THRU_FIELD(Struct, Field) \

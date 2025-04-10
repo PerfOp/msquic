@@ -158,6 +158,15 @@ struct PerfClient {
     UniquePtr<uint32_t[]> RecvStartTimeValues {nullptr}; // Lowest 32 bits of uint64_t RecvStartTime {0};
     UniquePtr<uint32_t[]> SendEndTimeValues {nullptr}; // Lowest 32 bits of uint64_t SendEndTime {0};
     UniquePtr<uint32_t[]> RecvEndTimeValues {nullptr}; // Lowest 32 bits of uint64_t RecvEndTime {0};
+    UniquePtr<uint64_t[]> SendRetransmittablePacketsValues {nullptr}; // Quic Stat V2 SendSuspectedLostPackets
+    UniquePtr<uint64_t[]> QuicLossDetectionRetransmitFramesCountValues {nullptr}; // Quic Stat V2 QuicLossDetectionRetransmitFramesCount
+    UniquePtr<uint64_t[]> SendSuspectedLostPacketsValues {nullptr}; // Quic Stat V2 SendSuspectedLostPackets
+    UniquePtr<uint64_t[]> SendSpuriousLostPacketsValues {nullptr}; // Quic Stat V2 SendSpuriousLostPackets
+    UniquePtr<uint32_t[]> SendCongestionCountValues {nullptr}; // Quic Stat V2 SendCongestionCount
+    UniquePtr<uint32_t[]> SendPersistentCongestionCountValues {nullptr}; // Quic Stat V2 SendPersistentCongestionCount
+    UniquePtr<uint64_t[]> RecvReorderedPacketsValues {nullptr}; // Quic Stat V2 RecvReorderedPackets
+    UniquePtr<uint64_t[]> RecvDroppedPacketsValues {nullptr}; // Quic Stat V2 RecvDroppedPackets
+    UniquePtr<uint64_t[]> RecvDuplicatePacketsValues {nullptr}; // Quic Stat V2 RecvDuplicatePackets
     //hjwang
     UniquePtr<QUIC_STREAM_STATISTICS[]> ExtraCounters {nullptr};
 

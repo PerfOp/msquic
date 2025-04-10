@@ -6829,6 +6829,7 @@ QuicConnGetV2Statistics(
     Stats->RecvDecryptionFailures = Connection->Stats.Recv.DecryptionFailures;
     Stats->RecvValidAckFrames = Connection->Stats.Recv.ValidAckFrames;
     Stats->KeyUpdateCount = Connection->Stats.Misc.KeyUpdateCount;
+    Stats->QuicLossDetectionRetransmitFramesCount = Connection->Stats.Misc.QuicLossDetectionRetransmitFramesCount;
 
     if (IsPlat) {
         Stats->TimingStart = CxPlatTimeUs64ToPlat(Stats->TimingStart); // cppcheck-suppress selfAssignment
