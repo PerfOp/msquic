@@ -48,6 +48,18 @@ public:
     static void DatapathUnreachable(_In_ CXPLAT_SOCKET*, _In_ void*, _In_ const QUIC_ADDR*) { }
 
 private:
+    const size_t MAX_SECNETPERF_COUNTER = 75000000; // 7.5M counters
+    int64_t current_counters = 0; // current counters
+    //davidxie: add extra msquic counters on server
+    UniquePtr<uint64_t[]> SendRetransmittablePacketsValues {nullptr}; // Quic Stat V2 SendSuspectedLostPackets
+    UniquePtr<uint64_t[]> QuicLossDetectionRetransmitFramesCountValues {nullptr}; // Quic Stat V2 QuicLossDetectionRetransmitFramesCount
+    UniquePtr<uint64_t[]> SendSuspectedLostPacketsValues {nullptr}; // Quic Stat V2 SendSuspectedLostPackets
+    UniquePtr<uint64_t[]> SendSpuriousLostPacketsValues {nullptr}; // Quic Stat V2 SendSpuriousLostPackets
+    UniquePtr<uint32_t[]> SendCongestionCountValues {nullptr}; // Quic Stat V2 SendCongestionCount
+    UniquePtr<uint32_t[]> SendPersistentCongestionCountValues {nullptr}; // Quic Stat V2 SendPersistentCongestionCount
+    UniquePtr<uint64_t[]> RecvReorderedPacketsValues {nullptr}; // Quic Stat V2 RecvReorderedPackets
+    UniquePtr<uint64_t[]> RecvDroppedPacketsValues {nullptr}; // Quic Stat V2 RecvDroppedPackets
+    UniquePtr<uint64_t[]> RecvDuplicatePacketsValues {nullptr}; // Quic Stat V2 RecvDuplicatePackets
 
     struct PerfIoBuffer {
         QUIC_BUFFER* Buffer {nullptr};
