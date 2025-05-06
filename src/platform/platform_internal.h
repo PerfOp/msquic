@@ -1308,4 +1308,8 @@ RawUpdateRoute(
     _In_ CXPLAT_ROUTE* SrcRoute
     );
 
+//hjwang: Debug utils
+void PrintCallStack();
+//-hjwang: Debug utils
+
 #endif // CX_PLATFORM_LINUX || _WIN32

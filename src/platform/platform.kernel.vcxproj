@@ -25,6 +25,7 @@
     <ClCompile Include="datapath_xplat.c" />
     <ClCompile Include="datapath_raw_dummy.c" />
     <ClCompile Include="datapath_win.c" />
+    <ClCompile Include="debug_utils.c" />
     <ClCompile Include="hashtable.c" />
     <ClCompile Include="pcp.c" />
     <ClCompile Include="platform_winkernel.c" />
