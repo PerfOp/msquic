@@ -88,6 +88,30 @@ PerfServer::Init(
         return Status;
     }
 
+    // davidxie Bulk initialization uint32_t[] counters
+    UniquePtr<uint32_t[]>* arr[] = {&SendCongestionCountValues, &SendPersistentCongestionCountValues};
+    // davidxie
+    for (auto i : arr)
+    {
+        *i = UniquePtr<uint32_t[]>(new(std::nothrow) uint32_t[MAX_SECNETPERF_COUNTER]);
+        if (*i == nullptr)
+        {
+            return QUIC_STATUS_OUT_OF_MEMORY;
+        }
+        CxPlatZeroMemory(i->get(), (size_t)(sizeof(uint32_t) * MAX_SECNETPERF_COUNTER));
+    }
+    // davidxie Bulk initialization uint64_t[] counters
+    UniquePtr<uint64_t[]>* arr64[] = {&SendRetransmittablePacketsValues, &QuicLossDetectionRetransmitFramesCountValues, &SendSuspectedLostPacketsValues, &SendSpuriousLostPacketsValues, &RecvReorderedPacketsValues, &RecvDroppedPacketsValues, &RecvDuplicatePacketsValues};
+    // davidxie
+    for (auto i : arr64)
+    {
+        *i = UniquePtr<uint64_t[]>(new(std::nothrow) uint64_t[MAX_SECNETPERF_COUNTER]);
+        if (*i == nullptr)
+        {
+            return QUIC_STATUS_OUT_OF_MEMORY;
+        }
+        CxPlatZeroMemory(i->get(), (size_t)(sizeof(uint64_t) * MAX_SECNETPERF_COUNTER));
+    }
     return QUIC_STATUS_SUCCESS;
 }
 
@@ -160,6 +184,46 @@ PerfServer::ConnectionCallback(
         if (!Event->SHUTDOWN_COMPLETE.AppCloseInProgress) {
             if (PrintStats) {
                 QuicPrintConnectionStatistics(MsQuic, ConnectionHandle);
+                // davidxie: write latency counters to gzip-compressed .csv file
+                printf("BEGIN exporting secnetperf server counters to .csv files\n");
+                std::vector<uint8_t> buffer;
+                std::string tableHeader = std::string("index"
+                                                      "SendRetransmittablePackets,"
+                                                      "QuicLossDetectionRetransmitFramesCount,"
+                                                      "SendSuspectedLostPackets,"
+                                                      "SendSpuriousLostPackets,"
+                                                      "SendCongestionCount,"
+                                                      "SendPersistentCongestionCount,"
+                                                      "RecvReorderedPackets,"
+                                                      "RecvDuplicatePackets \n");
+                buffer.insert(buffer.end(), tableHeader.begin(), tableHeader.end());
+                for (int i = 0; i < current_counters; i = i + 1) {
+                    std::string row =
+                        std::to_string(i) + "," +
+                        std::to_string(((uint64_t*)SendRetransmittablePacketsValues.get())[i]) + "," +
+                        std::to_string(((uint64_t*)QuicLossDetectionRetransmitFramesCountValues.get())[i]) + "," +
+                        std::to_string(((uint64_t*)SendSuspectedLostPacketsValues.get())[i]) + "," +
+                        std::to_string(((uint64_t*)SendSpuriousLostPacketsValues.get())[i]) + "," +
+                        std::to_string(((uint32_t*)SendCongestionCountValues.get())[i]) + "," +
+                        std::to_string(((uint32_t*)SendPersistentCongestionCountValues.get())[i]) + "," +
+                        std::to_string(((uint64_t*)RecvReorderedPacketsValues.get())[i]) + "," +
+                        std::to_string(((uint64_t*)RecvDuplicatePacketsValues.get())[i]) + "\n" ;
+                    buffer.insert(buffer.end(), row.begin(), row.end());
+                }
+
+                FILE* file;
+                if (fopen_s(&file, "msquic_secnetperf_servercounter.csv", "wb") != 0) {
+                    printf("Failed to open the msquic_secnetperf_servercounter.csv file for writing!\n");
+                }
+                const size_t bytesWritten = fwrite(buffer.data(), sizeof(uint8_t), buffer.size(), file);
+                if (bytesWritten != buffer.size()) {
+                    printf("Error writing to the csv file!\n");
+                    fclose(file);
+                }
+                // Close the csv file
+                fclose(file);
+                // davidxie: END write latency counters to .csv file
+
             }
             MsQuic->ConnectionClose(ConnectionHandle);
         }
@@ -230,6 +294,29 @@ PerfServer::StreamCallback(
     case QUIC_STREAM_EVENT_SHUTDOWN_COMPLETE:
         MsQuic->StreamClose(StreamHandle);
         StreamContextAllocator.Free(Context);
+        // davidxie: store counters to memory (array of large unsigned integers)
+        {
+            const auto Index = (uint64_t)InterlockedIncrement64((int64_t*)&current_counters) - 1;
+            if (Index < MAX_SECNETPERF_COUNTER) {
+                // davidxie: query current stream statistics
+                QUIC_STREAM_STATISTICS StreamStat;
+                uint32_t StreamStatisticsSize = sizeof(QUIC_STREAM_STATISTICS);
+                MsQuic->GetParam(StreamHandle, QUIC_PARAM_STREAM_STATISTICS, &StreamStatisticsSize, &StreamStat);
+                // davidxie: query current connection statistics
+                QUIC_STATISTICS_V2 ConnectionStat;
+                uint32_t ConnectionStatSize = sizeof(QUIC_STATISTICS_V2);
+                MsQuic->GetParam(StreamHandle, QUIC_PARAM_CONN_STATISTICS_V2, &ConnectionStatSize, &ConnectionStat);
+                SendRetransmittablePacketsValues[(size_t)Index] = ConnectionStat.SendRetransmittablePackets;
+                QuicLossDetectionRetransmitFramesCountValues[(size_t)Index] = ConnectionStat.QuicLossDetectionRetransmitFramesCount;
+                SendSuspectedLostPacketsValues[(size_t)Index] = ConnectionStat.SendSuspectedLostPackets;
+                SendSpuriousLostPacketsValues[(size_t)Index] = ConnectionStat.SendSpuriousLostPackets;
+                SendCongestionCountValues[(size_t)Index] = ConnectionStat.SendCongestionCount;
+                SendPersistentCongestionCountValues[(size_t)Index] = ConnectionStat.SendPersistentCongestionCount;
+                RecvReorderedPacketsValues[(size_t)Index] = ConnectionStat.RecvReorderedPackets;
+                RecvDroppedPacketsValues[(size_t)Index] = ConnectionStat.RecvDroppedPackets;
+                RecvDuplicatePacketsValues[(size_t)Index] = ConnectionStat.RecvDuplicatePackets;
+            }
+        }
         break;
     case QUIC_STREAM_EVENT_IDEAL_SEND_BUFFER_SIZE:
         if (!Context->BufferedIo &&
