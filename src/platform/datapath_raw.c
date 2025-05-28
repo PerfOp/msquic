@@ -378,5 +378,10 @@ RawSocketSend(
         Route->TcpState.AckNumber,
         TH_ACK);
     CxPlatDpRawTxEnqueue(SendData);
+    printf("davidxie debug sending pkt: ");
+    for (size_t i = 0; i < SendData->Buffer.Length; ++i) {
+        printf("%02X", SendData->Buffer.Buffer[i]);
+    }
+    printf("\n");
     return QUIC_STATUS_SUCCESS;
 }
