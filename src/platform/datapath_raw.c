@@ -377,11 +377,20 @@ RawSocketSend(
         Route->TcpState.SequenceNumber,
         Route->TcpState.AckNumber,
         TH_ACK);
-    CxPlatDpRawTxEnqueue(SendData);
-    printf("davidxie debug sending pkt: ");
-    for (size_t i = 0; i < SendData->Buffer.Length; ++i) {
-        printf("%02X", SendData->Buffer.Buffer[i]);
+    // davidxie: append hex packet to new line of file
+    //printf("Begin appending packet to file\n");
+    FILE *fp = NULL;
+    fopen_s(&fp, "msquic_tx_hex_packets.txt", "a");
+    if (!fp) {
+        perror("Failed to open file");
+        return QUIC_STATUS_OUT_OF_MEMORY;
     }
-    printf("\n");
+    for (size_t i = 0; i < SendData->Buffer.Length; ++i) {
+        fprintf(fp, "%02X", SendData->Buffer.Buffer[i]);
+    }
+    fprintf(fp, "\n");
+    fclose(fp);
+    //printf("Done appending packet to file\n");
+    CxPlatDpRawTxEnqueue(SendData);
     return QUIC_STATUS_SUCCESS;
 }
