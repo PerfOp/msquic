@@ -19,7 +19,7 @@ message(STATUS "CMAKE Version: ${CMAKE_VERSION}")
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_VS_GLOBALS "UseInternalMSUniCrtPackage=true")
- 
+
 message(STATUS "Source Dir: ${CMAKE_CURRENT_SOURCE_DIR}")
 message(STATUS "Host System name: ${CMAKE_HOST_SYSTEM_NAME}")
 if ("${CMAKE_HOST_SYSTEM_NAME}" STREQUAL "Windows")
@@ -794,6 +794,9 @@ if(QUIC_BUILD_PERF)
     add_subdirectory(src/perf/lib)
     add_subdirectory(src/perf/bin)
 endif()
+
+add_subdirectory(src/proto/lib)
+add_subdirectory(src/proto/bin)
 
 # Test code
 if(QUIC_BUILD_TEST)
