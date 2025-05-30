@@ -11,7 +11,7 @@ Abstract:
 
 #pragma once
 
-#include "SecNetPerf.h"
+#include "ProtoNetPerf.h"
 #include "quic_tls.h"
 
 #define TLS_BLOCK_SIZE 0x4000

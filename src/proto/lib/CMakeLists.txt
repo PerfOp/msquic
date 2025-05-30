@@ -2,9 +2,9 @@
 # Licensed under the MIT License.
 
 set(SOURCES
-    PerfClient.cpp
-    PerfServer.cpp
-    SecNetPerfMain.cpp
+    ProtoClient.cpp
+    ProtoServer.cpp
+    ProtoNetPerfMain.cpp
     Tcp.cpp
 )
 

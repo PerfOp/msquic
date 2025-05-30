@@ -9,9 +9,9 @@ Abstract:
 
 --*/
 
-#include "SecNetPerf.h"
-#include "PerfServer.h"
-#include "PerfClient.h"
+#include "ProtoNetPerf.h"
+#include "ProtoServer.h"
+#include "ProtoClient.h"
 #include "Tcp.h"
 
 const MsQuicApi* MsQuic;

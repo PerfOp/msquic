@@ -9,7 +9,7 @@ Abstract:
 
 --*/
 
-#include "PerfServer.h"
+#include "ProtoServer.h"
 
 #ifdef QUIC_CLOG
 #include "PerfServer.cpp.clog.h"

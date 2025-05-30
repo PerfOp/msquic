@@ -14,7 +14,7 @@ Abstract:
 #include <complex.h>
 #include <unordered_map>
 
-#include "SecNetPerf.h"
+#include "ProtoNetPerf.h"
 #include "Tcp.h"
 
 struct PerfClientConnection {

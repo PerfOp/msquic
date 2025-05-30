@@ -12,7 +12,7 @@ Abstract:
 
 #pragma once
 
-#include "SecNetPerf.h"
+#include "ProtoNetPerf.h"
 #include "Tcp.h"
 
 class PerfServer {

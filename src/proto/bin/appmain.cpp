@@ -13,7 +13,7 @@ Abstract:
 #include <unordered_map>
 #include <vector>
 
-#include "SecNetPerf.h"
+#include "ProtoNetPerf.h"
 #include "LatencyHelpers.h"
 #include "histogram/hdr_histogram.h"
 

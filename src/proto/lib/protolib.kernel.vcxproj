@@ -19,13 +19,13 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="PerfClient.cpp" />
-    <ClCompile Include="PerfServer.cpp" />
-    <ClCompile Include="SecNetPerfMain.cpp" />
+    <ClCompile Include="ProtoClient.cpp" />
+    <ClCompile Include="ProtoServer.cpp" />
+    <ClCompile Include="ProtoNetPerfMain.cpp" />
     <ClCompile Include="Tcp.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="SecNetPerf.h" />
+    <ClInclude Include="ProtoNetPerf.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{B5F49B54-BD10-AD08-E892-F4D279443479}</ProjectGuid>

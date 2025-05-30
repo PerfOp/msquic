@@ -9,10 +9,10 @@ Abstract:
 
 --*/
 
-#include "PerfClient.h"
+#include "ProtoClient.h"
 
 #ifdef QUIC_CLOG
-#include "PerfClient.cpp.clog.h"
+#include "ProtoClient.cpp.clog.h"
 #endif
 
 const char* TimeUnits[] = { "m", "ms", "us", "s" };
