@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 set(SOURCES
-    appmain.cpp
+    protomain.cpp
 )
 
 add_executable(protoperf ${SOURCES} histogram/hdr_histogram.c)
