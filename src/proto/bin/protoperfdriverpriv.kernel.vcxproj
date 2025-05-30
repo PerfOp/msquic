@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="drvmain.cpp" />
+    <ClCompile Include="protodrvmain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\platform\platform.kernel.vcxproj">
