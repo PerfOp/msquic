@@ -165,7 +165,9 @@ struct PerfClient {
             .SetSendBufferingEnabled(false)
             .SetCongestionControlAlgorithm(PerfDefaultCongestionControl)
             .SetEcnEnabled(PerfDefaultEcnEnabled)
-            .SetEncryptionOffloadAllowed(PerfDefaultQeoAllowed),
+            .SetEncryptionOffloadAllowed(PerfDefaultQeoAllowed)
+            // davidxie: turn on unreliable datagram extension for secnetperf
+            .SetDatagramReceiveEnabled(true),
         MsQuicCredentialConfig(
             QUIC_CREDENTIAL_FLAG_CLIENT |
             QUIC_CREDENTIAL_FLAG_NO_CERTIFICATE_VALIDATION)};
