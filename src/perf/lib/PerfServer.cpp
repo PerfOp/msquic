@@ -279,7 +279,8 @@ PerfServer::SendResponse(
             SendData->Fin = (Flags & QUIC_SEND_FLAG_FIN) ? TRUE : FALSE;
             ((TcpConnection*)Handle)->Send(SendData);
         } else {
-            MsQuic->StreamSend((HQUIC)Handle, Buffer, 1, Flags, Buffer);
+            // davidxie: use unrealiable datagram extension
+            MsQuic->DatagramSend((HQUIC)Handle, Buffer, 1, Flags, Buffer);
         }
     }
 }

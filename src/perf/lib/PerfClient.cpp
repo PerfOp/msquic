@@ -944,7 +944,8 @@ PerfClientStream::Send() {
             SendData->Fin = (Flags & QUIC_SEND_FLAG_FIN) ? TRUE : FALSE;
             Connection.TcpConn->Send(SendData);
         } else {
-            MsQuic->StreamSend(Handle, Buffer, 1, Flags, Buffer);
+            // davidxie: use unrealiable datagram
+            MsQuic->DatagramSend(Handle, Buffer, 1, Flags, Buffer);
         }
     }
 }
