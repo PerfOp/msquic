@@ -229,6 +229,8 @@ PerfClient::Init(
     TryGetValue(argc, argv, "encrypt", &UseEncryption);
     TryGetValue(argc, argv, "pacing", &UsePacing);
     TryGetValue(argc, argv, "sendbuf", &UseSendBuffering);
+    // hjwang
+    TryGetValue(argc, argv, "datagramsend", &UseDatagramSend);
     TryGetValue(argc, argv, "ptput", &PrintThroughput);
     TryGetValue(argc, argv, "prate", &PrintIoRate);
     TryGetValue(argc, argv, "pconnection", &PrintConnections);
@@ -853,6 +855,10 @@ PerfClientConnection::ConnectionCallback(
         }
         OnShutdownComplete();
         break;
+    case QUIC_CONNECTION_EVENT_DATAGRAM_RECEIVED: {
+        printf("Client received\n");
+        break;
+    }
     default:
         break;
     }
@@ -991,7 +997,12 @@ PerfClientStream::Send() {
             SendData->Fin = (Flags & QUIC_SEND_FLAG_FIN) ? TRUE : FALSE;
             Connection.TcpConn->Send(SendData);
         } else {
-            MsQuic->StreamSend(Handle, Buffer, 1, Flags, Buffer);
+            if (Client.UseDatagramSend) {
+                MsQuic->DatagramSend(Connection.Handle, Buffer, 1, QUIC_SEND_FLAG_NONE, nullptr);
+            }
+            else {
+                MsQuic->StreamSend(Handle, Buffer, 1, Flags, Buffer);
+            }
         }
     }
 }

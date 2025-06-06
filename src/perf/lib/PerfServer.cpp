@@ -236,7 +236,17 @@ PerfServer::ConnectionCallback(
             [](HQUIC Stream, void* Context, QUIC_STREAM_EVENT* Event) -> QUIC_STATUS {
                 return ((StreamContext*)Context)->Server->StreamCallback((StreamContext*)Context, Stream, Event);
             };
+        printf("New stream started: %llu\n",Context->ResponseSize);
         MsQuic->SetCallbackHandler(Event->PEER_STREAM_STARTED.Stream, (void*)Handler, Context);
+        break;
+    }
+    case QUIC_CONNECTION_EVENT_DATAGRAM_RECEIVED: {
+        QUIC_BUFFER* Buffer = ResponseBuffer;
+        Buffer->Length = 512;
+        QUIC_STATUS Status = MsQuic->DatagramSend(ConnectionHandle, Buffer, 1, QUIC_SEND_FLAG_NONE, nullptr);
+        if (QUIC_FAILED(Status)) {
+            printf("Failed to send datagram response: %d\n", Status);
+        }
         break;
     }
     default:

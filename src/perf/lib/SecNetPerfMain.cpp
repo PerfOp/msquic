@@ -102,6 +102,8 @@ PrintHelp(
         "  -encrypt:<0/1>           Disables/enables encryption. (def:1)\n"
         "  -pacing:<0/1>            Disables/enables send pacing. (def:1)\n"
         "  -sendbuf:<0/1>           Disables/enables send buffering. (def:0)\n"
+        //hjwang
+        "  -datagramsend:<0/1>      Disables/enables DatagramSend. (def:0)\n"
         "  -ptput:<0/1>             Print throughput information. (def:0)\n"
         "  -pconn:<0/1>             Print connection statistics. (def:0)\n"
         "  -pstream:<0/1>           Print stream statistics. (def:0)\n"

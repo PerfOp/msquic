@@ -186,7 +186,8 @@ struct PerfClient {
             .SetSendBufferingEnabled(false)
             .SetCongestionControlAlgorithm(PerfDefaultCongestionControl)
             .SetEcnEnabled(PerfDefaultEcnEnabled)
-            .SetEncryptionOffloadAllowed(PerfDefaultQeoAllowed),
+            .SetEncryptionOffloadAllowed(PerfDefaultQeoAllowed)
+            .SetDatagramReceiveEnabled(true),
         MsQuicCredentialConfig(
             QUIC_CREDENTIAL_FLAG_CLIENT |
             QUIC_CREDENTIAL_FLAG_NO_CERTIFICATE_VALIDATION)};
@@ -209,6 +210,9 @@ struct PerfClient {
     uint8_t UseEncryption {TRUE};
     uint8_t UsePacing {TRUE};
     uint8_t UseSendBuffering {FALSE};
+    //hjwang
+    uint8_t UseDatagramSend {FALSE};
+    //-hjwang
     uint8_t PrintThroughput {FALSE};
     uint8_t PrintIoRate {FALSE};
     uint8_t PrintConnections {FALSE};
