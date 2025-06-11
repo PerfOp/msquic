@@ -163,6 +163,9 @@ private:
     QUIC_ADDR LocalAddr;
     CXPLAT_EVENT* StopEvent {nullptr};
     uint8_t PrintStats {FALSE};
+    //hjwang
+    uint16_t rspFreq {1};
+    uint16_t receiveCounter{ 0 };
 
     TcpEngine Engine;
     TcpServer Server;

@@ -17,6 +17,8 @@ Abstract:
 #include "SecNetPerf.h"
 #include "Tcp.h"
 
+const uint32_t kPayloadSize = 1100;
+
 struct PerfClientConnection {
     struct PerfClient& Client;
     struct PerfClientWorker& Worker;
@@ -53,6 +55,15 @@ struct PerfClientConnection {
         _In_ uint8_t* Buffer
         );
     struct PerfClientStream* GetTcpStream(uint32_t ID);
+    //hjwang: datamark;
+    void IssueDatagram(uint32_t batchsize);
+    const uint32_t kMaxSamples = 1000000;
+    uint64_t DatagramSendStartTime {0};
+    uint64_t DatagramSendEndTime {0};
+    uint64_t DatagramRecvEndTime {0};
+    uint32_t DatagramSampleCount{ 0 };
+    uint32_t DatagramMinLat {1000};
+    uint32_t* LatencyValues{ nullptr };
 };
 
 struct PerfClientStream {
@@ -147,6 +158,9 @@ struct PerfClient {
     void GetExtraData(_Out_writes_bytes_(Length) uint8_t* Data, std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>>& ExtraTimestamp,_In_ uint32_t
                       Length);
 
+    //hjwang
+    void InitUploadBuffers();
+
     bool Running {true};
     CXPLAT_EVENT* CompletionEvent {nullptr};
     uint64_t MaxLatencyIndex {0};
@@ -211,7 +225,12 @@ struct PerfClient {
     uint8_t UsePacing {TRUE};
     uint8_t UseSendBuffering {FALSE};
     //hjwang
-    uint8_t UseDatagramSend {FALSE};
+    uint16_t UseDatagramSend {FALSE};
+    QUIC_BUFFER* pDatagramSendBuffer{ nullptr }; // for datagram send
+    //uint8_t assigneData[kPayloadSize]{0};
+    uint8_t assignedData[kPayloadSize];
+    uint8_t* assignedOrderData{ nullptr };
+    uint32_t totalBuffersCount{ 0 }; // for datagram send
     //-hjwang
     uint8_t PrintThroughput {FALSE};
     uint8_t PrintIoRate {FALSE};

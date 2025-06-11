@@ -96,6 +96,27 @@ TryGetVariableUnitValue(
     return TryGetVariableUnitValue(argc, argv, names, pValue, isTimed);
 }
 
+void PerfClient::InitUploadBuffers() {
+    if (Upload <= 0) {
+        WriteOutput("Upload size must be > 0 for upload scenario!\n");
+        return;
+    }
+    //totalBuffersCount = (uint32_t)(Upload / kPayloadSize + 1);
+    totalBuffersCount = 1000;
+    pDatagramSendBuffer = new QUIC_BUFFER[totalBuffersCount];
+    assignedOrderData = new uint8_t[totalBuffersCount * 2048];
+    memset(assignedOrderData, 0, sizeof(uint8_t) * totalBuffersCount * 2048);
+    for (uint32_t i = 0; i < totalBuffersCount; i++) {
+        pDatagramSendBuffer[i].Length = kPayloadSize;
+        uint16_t* pdata = (uint16_t*)(assignedOrderData + i * 2048);
+        pdata[0] = (uint16_t)i;
+        pdata[1] = (uint16_t)(totalBuffersCount - 1);
+        //pDatagramSendBuffer[i].Buffer = assignedData;
+        pDatagramSendBuffer[i].Buffer = (uint8_t*) pdata;
+    }
+    printf("Total %u buffers as upload\n", totalBuffersCount);
+}
+
 QUIC_STATUS
 PerfClient::Init(
     _In_ int argc,
@@ -258,6 +279,8 @@ PerfClient::Init(
     if (TryGetVariableUnitValue(argc, argv, UploadVarNames, &Upload, &IsTimeUnit)) {
         Timed = IsTimeUnit ? 1 : 0;
     }
+
+    InitUploadBuffers();
 
     const char* DownloadVarNames[] = {"download", "down", "response", nullptr};
     if (TryGetVariableUnitValue(argc, argv, DownloadVarNames, &Download, &IsTimeUnit)) {
@@ -623,7 +646,12 @@ PerfClientConnection::Initialize() {
             return;
         }
 
-    } else {
+    }
+    else {
+        //hjwang:
+        LatencyValues = new uint32_t[kMaxSamples];
+        memset(LatencyValues, 0, kMaxSamples * sizeof(uint32_t));
+
         if (QUIC_FAILED(
             MsQuic->ConnectionOpen(
                 Client.Registration,
@@ -744,7 +772,13 @@ PerfClientConnection::OnHandshakeComplete() {
         Worker.OnConnectionComplete();
     } else {
         for (uint32_t i = 0; i < Client.StreamCount; ++i) {
-            StartNewStream();
+            if (Client.UseDatagramSend) {
+                DatagramSendStartTime = CxPlatTimeUs64();
+                IssueDatagram(1);
+            }
+            else {
+                StartNewStream();
+            }
         }
     }
 }
@@ -838,6 +872,11 @@ PerfClientConnection::Shutdown() {
         OnShutdownComplete();
     } else {
         MsQuic->ConnectionShutdown(Handle, QUIC_CONNECTION_SHUTDOWN_FLAG_NONE, 0);
+        //hjwang
+        if (LatencyValues) {
+            delete []LatencyValues;
+            LatencyValues = nullptr;
+        }
     }
 }
 
@@ -846,9 +885,10 @@ PerfClientConnection::ConnectionCallback(
     _Inout_ QUIC_CONNECTION_EVENT* Event
     ) {
     switch (Event->Type) {
-    case QUIC_CONNECTION_EVENT_CONNECTED:
+    case QUIC_CONNECTION_EVENT_CONNECTED: {
         OnHandshakeComplete();
         break;
+    }
     case QUIC_CONNECTION_EVENT_SHUTDOWN_COMPLETE:
         if (Client.PrintConnections) {
             QuicPrintConnectionStatistics(MsQuic, Handle);
@@ -856,13 +896,84 @@ PerfClientConnection::ConnectionCallback(
         OnShutdownComplete();
         break;
     case QUIC_CONNECTION_EVENT_DATAGRAM_RECEIVED: {
-        printf("Client received\n");
+        //(Event->DATAGRAM_RECEIVED.Buffer->Length
+        DatagramSendEndTime = CxPlatTimeUs64();
+        uint32_t lat = (uint32_t)(DatagramSendEndTime - DatagramSendStartTime);
+        DatagramMinLat = min(DatagramMinLat, lat);
+        LatencyValues[DatagramSampleCount] = lat;
+        if (DatagramSampleCount % 10000 == 0) {
+            printf("%u sample done!\n", DatagramSampleCount);
+        }
+        /*
+            const QUIC_BUFFER* Buffer = (const QUIC_BUFFER*)Event->DATAGRAM_RECEIVED.Buffer;
+            if (Buffer->Buffer != nullptr) {
+                printf("response %u bytes\n", Buffer->Length);
+            }
+            else {
+                printf("invalid response %u bytes\n", Buffer->Length);
+            }
+        */
+        if (DatagramSampleCount++ < kMaxSamples) {
+        //if (DatagramSampleCount++ < 10) {
+            DatagramSendStartTime = CxPlatTimeUs64();
+            IssueDatagram(1);
+        }
+        else {
+#ifdef _WIN32
+            qsort_s(
+                LatencyValues,
+                kMaxSamples,
+                sizeof(uint32_t),
+                [](void*, const void* Left, const void* Right) -> int {
+                    return *(const uint32_t*)Left - *(const uint32_t*)Right;
+                },
+                nullptr);
+#else
+            qsort(
+                LatencyValues,
+                kMaxSamples,
+                sizeof(uint32_t),
+                [](const void* Left, const void* Right) -> int {
+                    return *(const uint32_t*)Left - *(const uint32_t*)Right;
+                });
+#endif
+            printf("Min Lat: %u us p50 %u p90 %u p99 %u p99.9 %u p99.99 %u p99.999 %u p99.9999 %u us\n", DatagramMinLat,
+                LatencyValues[(uint32_t)(kMaxSamples*0.5)],
+                LatencyValues[(uint32_t)(kMaxSamples*0.90)],
+                LatencyValues[(uint32_t)(kMaxSamples*0.99)],
+                LatencyValues[(uint32_t)(kMaxSamples*0.999)],
+                LatencyValues[(uint32_t)(kMaxSamples*0.9999)],
+                LatencyValues[(uint32_t)(kMaxSamples*0.99999)],
+                LatencyValues[(uint32_t)(kMaxSamples*0.999999)]
+                );
+        }
         break;
     }
+    /*
+    case QUIC_CONNECTION_EVENT_DATAGRAM_SEND_STATE_CHANGED: {
+        if (Event->DATAGRAM_SEND_STATE_CHANGED.State == QUIC_DATAGRAM_SEND_ACKNOWLEDGED) {
+            printf("sent done\n");
+        }
+    }
+    */
     default:
         break;
     }
     return QUIC_STATUS_SUCCESS;
+}
+
+void PerfClientConnection::IssueDatagram(uint32_t batchsize) {
+    for (uint32_t i = 0; i < batchsize; i++) {
+        QUIC_STATUS Status = MsQuic->DatagramSend(this->Handle, &(Client.pDatagramSendBuffer[i]), 1, QUIC_SEND_FLAG_NONE, nullptr);
+        if (QUIC_FAILED(Status)) {
+            printf("Send failed %x\n", Status);
+        }
+        /*
+        else {
+            printf("Send %u bytes %p with status %x \n", Client.pDatagramSendBuffer[0].Length, Client.pDatagramSendBuffer[0].Buffer, Status);
+        }
+        */
+    }
 }
 
 void
@@ -997,10 +1108,7 @@ PerfClientStream::Send() {
             SendData->Fin = (Flags & QUIC_SEND_FLAG_FIN) ? TRUE : FALSE;
             Connection.TcpConn->Send(SendData);
         } else {
-            if (Client.UseDatagramSend) {
-                MsQuic->DatagramSend(Connection.Handle, Buffer, 1, QUIC_SEND_FLAG_NONE, nullptr);
-            }
-            else {
+            if (!Client.UseDatagramSend) {
                 MsQuic->StreamSend(Handle, Buffer, 1, Flags, Buffer);
             }
         }

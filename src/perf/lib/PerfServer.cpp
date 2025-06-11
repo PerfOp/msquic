@@ -30,6 +30,8 @@ PerfServer::Init(
     }
 
     TryGetValue(argc, argv, "stats", &PrintStats);
+    //hjwang
+    TryGetValue(argc, argv, "rspfreq", &rspFreq);
 
     const char* LocalAddress = nullptr;
     uint16_t Port = 0;
@@ -241,11 +243,29 @@ PerfServer::ConnectionCallback(
         break;
     }
     case QUIC_CONNECTION_EVENT_DATAGRAM_RECEIVED: {
-        QUIC_BUFFER* Buffer = ResponseBuffer;
-        Buffer->Length = 512;
+        /*
+        const QUIC_BUFFER* recvBuffer = Event->DATAGRAM_RECEIVED.Buffer;
+        uint16_t* pdata = (uint16_t *)recvBuffer->Buffer;
+        if (pdata == nullptr) {
+            printf("Not a valid buffer\n");
+        }
+        else {
+        printf("Get request %u bytes %p val %d\n", recvBuffer->Length, recvBuffer->Buffer, pdata[0]);
+        }
+        */
+
+            /*
+        receiveCounter++;
+        if (receiveCounter == rspFreq) {
+        */
+        QUIC_BUFFER* Buffer = ResponseBuffer.Buffer;
+        Buffer->Length = 120;
+        //MsQuic->DatagramSend(ConnectionHandle, Buffer, 1, QUIC_SEND_FLAG_NONE, nullptr);
+        //receiveCounter = 0;
+        //}
         QUIC_STATUS Status = MsQuic->DatagramSend(ConnectionHandle, Buffer, 1, QUIC_SEND_FLAG_NONE, nullptr);
         if (QUIC_FAILED(Status)) {
-            printf("Failed to send datagram response: %d\n", Status);
+            printf("Server failed ack: %x with %u bytes data %p\n", Status, Buffer->Length, Buffer->Buffer);
         }
         break;
     }
