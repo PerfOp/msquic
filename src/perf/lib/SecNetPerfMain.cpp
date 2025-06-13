@@ -30,6 +30,31 @@ uint8_t PerfDefaultQeoAllowed = false;
 uint8_t PerfDefaultHighPriority = false;
 uint8_t PerfDefaultAffinitizeThreads = false;
 
+//hjwang
+uint8_t* assignedOrderData = nullptr;
+QUIC_BUFFER* pDatagramSendBuffer = nullptr; // for datagram send
+
+void SetReqOrder(uint32_t order) {
+    for (uint32_t i = 0; i < totalBuffersCount; i++) {
+        uint32_t* pdata = (uint32_t*)(assignedOrderData + i * kAlignedSize);
+        pdata[0] = (uint32_t)order;
+    }
+}
+void InitUploadBuffers() {
+    pDatagramSendBuffer = new QUIC_BUFFER[totalBuffersCount];
+    assignedOrderData = new uint8_t[totalBuffersCount * kAlignedSize];
+    memset(assignedOrderData, 0, sizeof(uint8_t) * totalBuffersCount * kAlignedSize);
+    for (uint32_t i = 0; i < totalBuffersCount; i++) {
+        pDatagramSendBuffer[i].Length = kPayloadSize;
+        uint16_t* pdata = (uint16_t*)(assignedOrderData + i * kAlignedSize);
+        pDatagramSendBuffer[i].Buffer = (uint8_t*) pdata;
+    }
+    SetReqOrder(0);
+    printf("Total %u buffers as upload\n", totalBuffersCount);
+}
+
+
+
 #ifdef _KERNEL_MODE
 volatile int BufferCurrent;
 char Buffer[BufferLength];

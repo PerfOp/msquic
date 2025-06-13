@@ -61,6 +61,15 @@ extern uint8_t PerfDefaultAffinitizeThreads;
 
 extern CXPLAT_DATAPATH* Datapath;
 
+extern uint8_t* assignedOrderData;
+const uint32_t kPayloadSize = 1100;
+const uint32_t totalBuffersCount = 1000;
+const uint32_t kAlignedSize = 2048;
+extern QUIC_BUFFER* pDatagramSendBuffer;
+
+void InitUploadBuffers();
+void SetReqOrder(uint32_t order) ;
+
 extern
 QUIC_STATUS
 QuicMainStart(

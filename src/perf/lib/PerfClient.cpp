@@ -96,27 +96,6 @@ TryGetVariableUnitValue(
     return TryGetVariableUnitValue(argc, argv, names, pValue, isTimed);
 }
 
-void PerfClient::InitUploadBuffers() {
-    if (Upload <= 0) {
-        WriteOutput("Upload size must be > 0 for upload scenario!\n");
-        return;
-    }
-    //totalBuffersCount = (uint32_t)(Upload / kPayloadSize + 1);
-    totalBuffersCount = 1000;
-    pDatagramSendBuffer = new QUIC_BUFFER[totalBuffersCount];
-    assignedOrderData = new uint8_t[totalBuffersCount * 2048];
-    memset(assignedOrderData, 0, sizeof(uint8_t) * totalBuffersCount * 2048);
-    for (uint32_t i = 0; i < totalBuffersCount; i++) {
-        pDatagramSendBuffer[i].Length = kPayloadSize;
-        uint16_t* pdata = (uint16_t*)(assignedOrderData + i * 2048);
-        pdata[0] = (uint16_t)i;
-        pdata[1] = (uint16_t)(totalBuffersCount - 1);
-        //pDatagramSendBuffer[i].Buffer = assignedData;
-        pDatagramSendBuffer[i].Buffer = (uint8_t*) pdata;
-    }
-    printf("Total %u buffers as upload\n", totalBuffersCount);
-}
-
 QUIC_STATUS
 PerfClient::Init(
     _In_ int argc,
@@ -252,6 +231,14 @@ PerfClient::Init(
     TryGetValue(argc, argv, "sendbuf", &UseSendBuffering);
     // hjwang
     TryGetValue(argc, argv, "datagramsend", &UseDatagramSend);
+    TryGetValue(argc, argv, "reqbatch", &reqBatch);
+    TryGetValue(argc, argv, "reqpps", &reqPPS);
+    TryGetValue(argc, argv, "latbatch", &latBatch);
+    if (UseDatagramSend) {
+        printf("DatagramSend enabled with pps %d batch %d latbatch %d\n", reqPPS, reqBatch, latBatch);
+    }
+    reqBucket.init_token_bucket(1, reqPPS);
+
     TryGetValue(argc, argv, "ptput", &PrintThroughput);
     TryGetValue(argc, argv, "prate", &PrintIoRate);
     TryGetValue(argc, argv, "pconnection", &PrintConnections);
@@ -649,8 +636,12 @@ PerfClientConnection::Initialize() {
     }
     else {
         //hjwang:
-        LatencyValues = new uint32_t[kMaxSamples];
-        memset(LatencyValues, 0, kMaxSamples * sizeof(uint32_t));
+        udeLatencyValues = new uint32_t[kMaxSamples];
+        memset(udeLatencyValues, 0, kMaxSamples * sizeof(uint32_t));
+        udeLatencyStart = new uint64_t[kMaxSamples];
+        memset(udeLatencyStart, 0, kMaxSamples * sizeof(uint64_t));
+        recvCounterArray = new uint16_t[kMaxSamples];
+        memset(recvCounterArray, 0, kMaxSamples * sizeof(uint16_t));
 
         if (QUIC_FAILED(
             MsQuic->ConnectionOpen(
@@ -763,6 +754,53 @@ PerfClientConnection::Initialize() {
     }
 }
 
+DWORD WINAPI RequestThreadFunction(LPVOID lpParam) {
+    printf("Start the request thread \n");
+    PerfClientConnection* connection = (PerfClientConnection*)lpParam;
+    connection->c_ReqOrder = 0;
+    while(connection->c_ReqOrder<connection->kMaxSamples){
+        if (connection->Client.reqBucket.consume_tokens(1) != 0) {
+            connection->IssueDatagram(connection->Client.reqBatch);
+        }
+        YieldProcessor();
+    }
+    printf("The request thread done\n");
+    Sleep(1000);
+    connection->printConnectionLatency();
+    return 0;
+}
+
+void PerfClientConnection::printConnectionLatency() {
+#ifdef _WIN32
+    qsort_s(
+        udeLatencyValues,
+        kMaxSamples,
+        sizeof(uint32_t),
+        [](void*, const void* Left, const void* Right) -> int {
+            return *(const uint32_t*)Left - *(const uint32_t*)Right;
+        },
+        nullptr);
+#else
+    qsort(
+        udeLatencyValues,
+        kMaxSamples,
+        sizeof(uint32_t),
+        [](const void* Left, const void* Right) -> int {
+            return *(const uint32_t*)Left - *(const uint32_t*)Right;
+        });
+#endif
+    printf("Min Lat: %u us p50 %u p90 %u p99 %u p99.9 %u p99.99 %u p99.999 %u p99.9999 %u us\n", DatagramMinLat,
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.5)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.90)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.99)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.999)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.9999)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.99999)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.999999)]
+    );
+
+}
+
 void
 PerfClientConnection::OnHandshakeComplete() {
     InterlockedIncrement64((int64_t*)&Worker.ConnectionsConnected);
@@ -773,8 +811,18 @@ PerfClientConnection::OnHandshakeComplete() {
     } else {
         for (uint32_t i = 0; i < Client.StreamCount; ++i) {
             if (Client.UseDatagramSend) {
-                DatagramSendStartTime = CxPlatTimeUs64();
-                IssueDatagram(1);
+                //IssueDatagram(Client.reqBatch);
+                printf("start the request.....\n");
+                hReqThread = CreateThread(
+                    NULL,
+                    0,
+                    RequestThreadFunction,
+                    this,
+                    0,
+                    &reqThreadId);
+                if (hReqThread == nullptr) {
+                    printf("Create thread failed\n");
+                }
             }
             else {
                 StartNewStream();
@@ -873,9 +921,17 @@ PerfClientConnection::Shutdown() {
     } else {
         MsQuic->ConnectionShutdown(Handle, QUIC_CONNECTION_SHUTDOWN_FLAG_NONE, 0);
         //hjwang
-        if (LatencyValues) {
-            delete []LatencyValues;
-            LatencyValues = nullptr;
+        if (udeLatencyValues) {
+            delete []udeLatencyValues;
+            udeLatencyValues = nullptr;
+        }
+        if (udeLatencyStart) {
+            delete[]udeLatencyStart;
+            udeLatencyStart = nullptr;
+        }
+        if (recvCounterArray) {
+            delete[]recvCounterArray;
+            recvCounterArray = nullptr;
         }
     }
 }
@@ -897,31 +953,25 @@ PerfClientConnection::ConnectionCallback(
         break;
     case QUIC_CONNECTION_EVENT_DATAGRAM_RECEIVED: {
         //(Event->DATAGRAM_RECEIVED.Buffer->Length
-        DatagramSendEndTime = CxPlatTimeUs64();
-        uint32_t lat = (uint32_t)(DatagramSendEndTime - DatagramSendStartTime);
-        DatagramMinLat = min(DatagramMinLat, lat);
-        LatencyValues[DatagramSampleCount] = lat;
-        if (DatagramSampleCount % 10000 == 0) {
-            printf("%u sample done!\n", DatagramSampleCount);
+        const QUIC_BUFFER* Buffer = (const QUIC_BUFFER*)Event->DATAGRAM_RECEIVED.Buffer;
+        uint32_t order = 0;
+        uint32_t* pdata = (uint32_t*)Buffer->Buffer;
+        if (pdata != 0) {
+            order = pdata[0];
+            if (order % 10000 == 0) {
+                printf("%u req done!\n", order);
+            }
+            recvCounterArray[order]++;
+            if (recvCounterArray[order] >= Client.latBatch) {
+                uint32_t lat = (uint32_t)(CxPlatTimeUs64() - udeLatencyStart[order]);
+                udeLatencyValues[order] = lat;
+            }
         }
         /*
-            const QUIC_BUFFER* Buffer = (const QUIC_BUFFER*)Event->DATAGRAM_RECEIVED.Buffer;
-            if (Buffer->Buffer != nullptr) {
-                printf("response %u bytes\n", Buffer->Length);
-            }
-            else {
-                printf("invalid response %u bytes\n", Buffer->Length);
-            }
-        */
-        if (DatagramSampleCount++ < kMaxSamples) {
-        //if (DatagramSampleCount++ < 10) {
-            DatagramSendStartTime = CxPlatTimeUs64();
-            IssueDatagram(1);
-        }
-        else {
+        if (order >= (kMaxSamples-1)) {
 #ifdef _WIN32
             qsort_s(
-                LatencyValues,
+                udeLatencyValues,
                 kMaxSamples,
                 sizeof(uint32_t),
                 [](void*, const void* Left, const void* Right) -> int {
@@ -930,7 +980,7 @@ PerfClientConnection::ConnectionCallback(
                 nullptr);
 #else
             qsort(
-                LatencyValues,
+                udeLatencyValues,
                 kMaxSamples,
                 sizeof(uint32_t),
                 [](const void* Left, const void* Right) -> int {
@@ -938,15 +988,15 @@ PerfClientConnection::ConnectionCallback(
                 });
 #endif
             printf("Min Lat: %u us p50 %u p90 %u p99 %u p99.9 %u p99.99 %u p99.999 %u p99.9999 %u us\n", DatagramMinLat,
-                LatencyValues[(uint32_t)(kMaxSamples*0.5)],
-                LatencyValues[(uint32_t)(kMaxSamples*0.90)],
-                LatencyValues[(uint32_t)(kMaxSamples*0.99)],
-                LatencyValues[(uint32_t)(kMaxSamples*0.999)],
-                LatencyValues[(uint32_t)(kMaxSamples*0.9999)],
-                LatencyValues[(uint32_t)(kMaxSamples*0.99999)],
-                LatencyValues[(uint32_t)(kMaxSamples*0.999999)]
+                udeLatencyValues[(uint32_t)(kMaxSamples*0.5)],
+                udeLatencyValues[(uint32_t)(kMaxSamples*0.90)],
+                udeLatencyValues[(uint32_t)(kMaxSamples*0.99)],
+                udeLatencyValues[(uint32_t)(kMaxSamples*0.999)],
+                udeLatencyValues[(uint32_t)(kMaxSamples*0.9999)],
+                udeLatencyValues[(uint32_t)(kMaxSamples*0.99999)],
+                udeLatencyValues[(uint32_t)(kMaxSamples*0.999999)]
                 );
-        }
+        }*/
         break;
     }
     /*
@@ -963,17 +1013,15 @@ PerfClientConnection::ConnectionCallback(
 }
 
 void PerfClientConnection::IssueDatagram(uint32_t batchsize) {
+    SetReqOrder(c_ReqOrder);
+    udeLatencyStart[c_ReqOrder] = CxPlatTimeUs64();
     for (uint32_t i = 0; i < batchsize; i++) {
-        QUIC_STATUS Status = MsQuic->DatagramSend(this->Handle, &(Client.pDatagramSendBuffer[i]), 1, QUIC_SEND_FLAG_NONE, nullptr);
+        QUIC_STATUS Status = MsQuic->DatagramSend(this->Handle, &(pDatagramSendBuffer[i]), 1, QUIC_SEND_FLAG_NONE, nullptr);
         if (QUIC_FAILED(Status)) {
             printf("Send failed %x\n", Status);
         }
-        /*
-        else {
-            printf("Send %u bytes %p with status %x \n", Client.pDatagramSendBuffer[0].Length, Client.pDatagramSendBuffer[0].Buffer, Status);
-        }
-        */
     }
+    c_ReqOrder++;
 }
 
 void

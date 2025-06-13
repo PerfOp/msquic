@@ -31,7 +31,9 @@ PerfServer::Init(
 
     TryGetValue(argc, argv, "stats", &PrintStats);
     //hjwang
-    TryGetValue(argc, argv, "rspfreq", &rspFreq);
+    TryGetValue(argc, argv, "ackbatch", &ackBatch);
+    TryGetValue(argc, argv, "batchtoack", &batchToAck);
+    printf("DatagramSend: Ack every %d frames, ack with the batch %d\n", batchToAck, ackBatch);
 
     const char* LocalAddress = nullptr;
     uint16_t Port = 0;
@@ -243,6 +245,17 @@ PerfServer::ConnectionCallback(
         break;
     }
     case QUIC_CONNECTION_EVENT_DATAGRAM_RECEIVED: {
+        const QUIC_BUFFER* recvBuffer = Event->DATAGRAM_RECEIVED.Buffer;
+        uint32_t* pdata = (uint32_t *)recvBuffer->Buffer;
+        uint32_t order = 0;
+        if (pdata != nullptr) {
+            order = pdata[0];
+            if (order % 10000 == 0) {
+                printf("Server receive order: %d\n", order);
+            }
+        } else {
+            printf("null response \n");
+        }
         /*
         const QUIC_BUFFER* recvBuffer = Event->DATAGRAM_RECEIVED.Buffer;
         uint16_t* pdata = (uint16_t *)recvBuffer->Buffer;
@@ -260,6 +273,8 @@ PerfServer::ConnectionCallback(
         */
         QUIC_BUFFER* Buffer = ResponseBuffer.Buffer;
         Buffer->Length = 120;
+        uint32_t* prspdata = (uint32_t*)(Buffer->Buffer);
+        prspdata[0] = order;
         //MsQuic->DatagramSend(ConnectionHandle, Buffer, 1, QUIC_SEND_FLAG_NONE, nullptr);
         //receiveCounter = 0;
         //}

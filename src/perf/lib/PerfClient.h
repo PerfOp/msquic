@@ -16,8 +16,7 @@ Abstract:
 
 #include "SecNetPerf.h"
 #include "Tcp.h"
-
-const uint32_t kPayloadSize = 1100;
+#include "HighPerfTimer.h"
 
 struct PerfClientConnection {
     struct PerfClient& Client;
@@ -57,13 +56,16 @@ struct PerfClientConnection {
     struct PerfClientStream* GetTcpStream(uint32_t ID);
     //hjwang: datamark;
     void IssueDatagram(uint32_t batchsize);
+    void printConnectionLatency();
+    HANDLE hReqThread{ nullptr };
+    DWORD reqThreadId{ 0 };
     const uint32_t kMaxSamples = 1000000;
-    uint64_t DatagramSendStartTime {0};
-    uint64_t DatagramSendEndTime {0};
-    uint64_t DatagramRecvEndTime {0};
-    uint32_t DatagramSampleCount{ 0 };
+    uint32_t c_ReqOrder{ 0 };
     uint32_t DatagramMinLat {1000};
-    uint32_t* LatencyValues{ nullptr };
+    uint32_t* udeLatencyValues{ nullptr };
+    uint64_t* udeLatencyStart{ nullptr };
+    uint16_t* recvCounterArray{ nullptr };
+
 };
 
 struct PerfClientStream {
@@ -158,9 +160,6 @@ struct PerfClient {
     void GetExtraData(_Out_writes_bytes_(Length) uint8_t* Data, std::pmr::unordered_map<std::string, UniquePtr<uint8_t[]>>& ExtraTimestamp,_In_ uint32_t
                       Length);
 
-    //hjwang
-    void InitUploadBuffers();
-
     bool Running {true};
     CXPLAT_EVENT* CompletionEvent {nullptr};
     uint64_t MaxLatencyIndex {0};
@@ -226,11 +225,13 @@ struct PerfClient {
     uint8_t UseSendBuffering {FALSE};
     //hjwang
     uint16_t UseDatagramSend {FALSE};
-    QUIC_BUFFER* pDatagramSendBuffer{ nullptr }; // for datagram send
-    //uint8_t assigneData[kPayloadSize]{0};
-    uint8_t assignedData[kPayloadSize];
-    uint8_t* assignedOrderData{ nullptr };
-    uint32_t totalBuffersCount{ 0 }; // for datagram send
+    //QUIC_BUFFER* pDatagramSendBuffer{ nullptr }; // for datagram send
+    //uint8_t* assignedOrderData{ nullptr };
+    //uint32_t totalBuffersCount{ 0 }; // for datagram send
+    uint32_t reqPPS{ 10000 };
+    uint32_t reqBatch{ 1 };
+    uint32_t latBatch{ 1 };
+    sTokenBucket reqBucket;
     //-hjwang
     uint8_t PrintThroughput {FALSE};
     uint8_t PrintIoRate {FALSE};

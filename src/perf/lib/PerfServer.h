@@ -165,7 +165,9 @@ private:
     uint8_t PrintStats {FALSE};
     //hjwang
     uint16_t rspFreq {1};
-    uint16_t receiveCounter{ 0 };
+    uint16_t* receiveCounterArray{ nullptr };
+    uint32_t ackBatch{ 1 };
+    uint32_t batchToAck{ 1 };
 
     TcpEngine Engine;
     TcpServer Server;

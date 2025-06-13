@@ -5,6 +5,7 @@ set(SOURCES
     PerfClient.cpp
     PerfServer.cpp
     SecNetPerfMain.cpp
+    HighPerfTimer.cpp
     Tcp.cpp
 )
 
