@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="HighPerfTimer.cpp" />
     <ClCompile Include="PerfClient.cpp" />
     <ClCompile Include="PerfServer.cpp" />
     <ClCompile Include="SecNetPerfMain.cpp" />

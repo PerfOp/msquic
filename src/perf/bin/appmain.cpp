@@ -49,7 +49,7 @@ QuicHandleExtraData(
 
     uint32_t RPS = (uint32_t)((CachedCompletedRequests * 1000ull * 1000ull) / RunTime);
     if (RPS == 0) {
-        printf("Error: No requests were completed\n");
+        printf("Error: No requests were completed %lld %lld second\n", CachedCompletedRequests, RunTime);
         return;
     }
 

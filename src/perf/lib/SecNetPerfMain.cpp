@@ -50,7 +50,7 @@ void InitUploadBuffers() {
         pDatagramSendBuffer[i].Buffer = (uint8_t*) pdata;
     }
     SetReqOrder(0);
-    printf("Total %u buffers as upload\n", totalBuffersCount);
+    //printf("Init %u buffers for testing upload (just \n", totalBuffersCount);
 }
 
 

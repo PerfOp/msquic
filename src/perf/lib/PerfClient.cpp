@@ -1,4 +1,4 @@
-/*++
+﻿/*++
 
     Copyright (c) Microsoft Corporation.
     Licensed under the MIT License.
@@ -799,6 +799,38 @@ void PerfClientConnection::printConnectionLatency() {
         udeLatencyValues[(uint32_t)(kMaxSamples * 0.999999)]
     );
 
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    //
+    char filename[100];
+    int ret = sprintf_s(filename, sizeof(filename), "%04d%02d%02d%02d%02d%02d-%u-%u-%u.csv",
+        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, Client.reqPPS, pktRecv, pktSent);
+    if (ret <= 0) {
+        return;
+    }
+
+    //
+    FILE* fp = NULL;
+    errno_t err = fopen_s(&fp, filename, "w");
+    if (err != 0 || fp == NULL) {
+        printf("faile to export file %s\n", filename);
+        return;
+    }
+
+    fprintf(fp, "p50,p90,p99,p999,p9999,p99999,p999999\n");
+    fprintf(fp, "%u,%u,%u,%u,%u,%u,%u\n",
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.5)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.90)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.99)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.999)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.9999)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.99999)],
+        udeLatencyValues[(uint32_t)(kMaxSamples * 0.999999)]
+        );
+
+    fclose(fp);
+
+    return;
 }
 
 void
@@ -856,6 +888,7 @@ PerfClientConnection::OnShutdownComplete() {
 
 void
 PerfClientConnection::StartNewStream() {
+    printf("start new stream\n");
     StreamsCreated++;
     StreamsActive++;
     auto Stream = Worker.StreamPool.Alloc(*this);
@@ -966,6 +999,7 @@ PerfClientConnection::ConnectionCallback(
                 uint32_t lat = (uint32_t)(CxPlatTimeUs64() - udeLatencyStart[order]);
                 udeLatencyValues[order] = lat;
             }
+            pktRecv++;
         }
         /*
         if (order >= (kMaxSamples-1)) {
@@ -1019,6 +1053,9 @@ void PerfClientConnection::IssueDatagram(uint32_t batchsize) {
         QUIC_STATUS Status = MsQuic->DatagramSend(this->Handle, &(pDatagramSendBuffer[i]), 1, QUIC_SEND_FLAG_NONE, nullptr);
         if (QUIC_FAILED(Status)) {
             printf("Send failed %x\n", Status);
+        }
+        else {
+            pktSent++;
         }
     }
     c_ReqOrder++;

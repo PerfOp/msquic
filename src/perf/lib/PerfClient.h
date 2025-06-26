@@ -66,6 +66,8 @@ struct PerfClientConnection {
     uint64_t* udeLatencyStart{ nullptr };
     uint16_t* recvCounterArray{ nullptr };
 
+    uint32_t pktSent{ 0 };
+    uint32_t pktRecv{ 0 };
 };
 
 struct PerfClientStream {
