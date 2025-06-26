@@ -789,6 +789,16 @@ void PerfClientConnection::printConnectionLatency() {
             return *(const uint32_t*)Left - *(const uint32_t*)Right;
         });
 #endif
+    uint32_t mark = 0;
+    for (; mark < kMaxSamples; mark++) {
+        if (udeLatencyValues[mark] == 0) {
+            continue;
+        }
+        else {
+            break;
+        }
+    }
+    printf("Get latency at min pos %u \n", mark);
     printf("Min Lat: %u us p50 %u p90 %u p99 %u p99.9 %u p99.99 %u p99.999 %u p99.9999 %u us\n", DatagramMinLat,
         udeLatencyValues[(uint32_t)(kMaxSamples * 0.5)],
         udeLatencyValues[(uint32_t)(kMaxSamples * 0.90)],
@@ -991,15 +1001,20 @@ PerfClientConnection::ConnectionCallback(
         uint32_t* pdata = (uint32_t*)Buffer->Buffer;
         if (pdata != 0) {
             order = pdata[0];
-            if (order % 10000 == 0) {
-                printf("%u req done!\n", order);
+            if (order % 100000 == 0) {
+                printf("%u req recv!\n", order);
             }
+            /*
+            if (order > pktRecv+1) {
+                printf("found lost %d %d\n", order, pktRecv);
+            }
+            */
             recvCounterArray[order]++;
             if (recvCounterArray[order] >= Client.latBatch) {
                 uint32_t lat = (uint32_t)(CxPlatTimeUs64() - udeLatencyStart[order]);
                 udeLatencyValues[order] = lat;
+                pktRecv++;
             }
-            pktRecv++;
         }
         /*
         if (order >= (kMaxSamples-1)) {
