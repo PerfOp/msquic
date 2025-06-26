@@ -754,7 +754,7 @@ PerfClientConnection::Initialize() {
     }
 }
 
-DWORD WINAPI RequestThreadFunction(LPVOID lpParam) {
+DWORD WINAPI UDERequestThreadFunction(LPVOID lpParam) {
     printf("Start the request thread \n");
     PerfClientConnection* connection = (PerfClientConnection*)lpParam;
     connection->c_ReqOrder = 0;
@@ -816,7 +816,7 @@ PerfClientConnection::OnHandshakeComplete() {
                 hReqThread = CreateThread(
                     NULL,
                     0,
-                    RequestThreadFunction,
+                    UDERequestThreadFunction,
                     this,
                     0,
                     &reqThreadId);
