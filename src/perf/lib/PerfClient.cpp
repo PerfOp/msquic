@@ -828,8 +828,9 @@ void PerfClientConnection::printConnectionLatency() {
         return;
     }
 
-    fprintf(fp, "p50,p90,p99,p999,p9999,p99999,p999999\n");
-    fprintf(fp, "%u,%u,%u,%u,%u,%u,%u\n",
+    //fprintf(fp, "p50,p90,p99,p999,p9999,p99999,p999999\n");
+    fprintf(fp, "%u,%u,%u,%u,%u,%u,%u,%u\n",
+        Client.reqPPS,
         udeLatencyValues[(uint32_t)(kMaxSamples * 0.5)],
         udeLatencyValues[(uint32_t)(kMaxSamples * 0.90)],
         udeLatencyValues[(uint32_t)(kMaxSamples * 0.99)],

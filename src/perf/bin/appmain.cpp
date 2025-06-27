@@ -195,8 +195,9 @@ QuicHandleExtraData(
         return;
     }
 
-    fprintf(fplat, "p50,p90,p99,p999,p9999,p99999,p999999\n");
-    fprintf(fplat, "%u,%u,%u,%u,%u,%u,%u\n",
+    // fprintf(fplat, "p50,p90,p99,p999,p9999,p99999,p999999\n");
+    fprintf(fplat, "%u,%u,%u,%u,%u,%u,%u,%u\n",
+        RPS,
         (uint32_t)PercentileStats.P50,
         (uint32_t)PercentileStats.P90,
         (uint32_t)PercentileStats.P99,
