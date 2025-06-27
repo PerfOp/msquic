@@ -250,11 +250,9 @@ PerfServer::ConnectionCallback(
         uint32_t order = 0;
         if (pdata != nullptr) {
             order = pdata[0];
-            if (order % 10000 == 0) {
+            if (order % 100000 == 0) {
                 printf("Server receive order: %d\n", order);
             }
-        } else {
-            printf("null response \n");
         }
         /*
         const QUIC_BUFFER* recvBuffer = Event->DATAGRAM_RECEIVED.Buffer;

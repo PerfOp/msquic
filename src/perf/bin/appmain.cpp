@@ -136,6 +136,7 @@ QuicHandleExtraData(
     fclose(file);
     // davidxie: END write latency counters to gzip-compressed .csv file
 
+
     GetStatistics((uint32_t*)ExtraData, MaxCount, &LatencyStats, &PercentileStats);
     WriteOutput(
         "Result: %u RPS, Latency,us 0th: %d, 50th: %.0f, 90th: %.0f, 99th: %.0f, 99.9th: %.0f, 99.99th: %.0f, 99.999th: %.0f, 99.9999th: %.0f, Max: %d\n",
@@ -174,6 +175,38 @@ QuicHandleExtraData(
         }
         fclose(FilePtr);
     }
+
+
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    //
+    char filename[100];
+    int ret = sprintf_s(filename, sizeof(filename), "%04d%02d%02d%02d%02d%02d-%u-stream.csv",
+        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, RPS);
+    if (ret <= 0) {
+        return;
+    }
+
+    //
+    FILE* fplat = NULL;
+    errno_t err = fopen_s(&fplat, filename, "w");
+    if (err != 0 || fplat == NULL) {
+        printf("faile to export file %s\n", filename);
+        return;
+    }
+
+    fprintf(fplat, "p50,p90,p99,p999,p9999,p99999,p999999\n");
+    fprintf(fplat, "%u,%u,%u,%u,%u,%u,%u\n",
+        (uint32_t)PercentileStats.P50,
+        (uint32_t)PercentileStats.P90,
+        (uint32_t)PercentileStats.P99,
+        (uint32_t)PercentileStats.P99p9,
+        (uint32_t)PercentileStats.P99p99,
+        (uint32_t)PercentileStats.P99p999,
+        (uint32_t)PercentileStats.P99p9999
+        );
+
+    fclose(fplat);
 }
 
 QUIC_STATUS

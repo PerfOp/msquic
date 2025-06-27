@@ -795,6 +795,7 @@ void PerfClientConnection::printConnectionLatency() {
             continue;
         }
         else {
+            DatagramMinLat = udeLatencyValues[mark];
             break;
         }
     }
@@ -814,7 +815,7 @@ void PerfClientConnection::printConnectionLatency() {
     //
     char filename[100];
     int ret = sprintf_s(filename, sizeof(filename), "%04d%02d%02d%02d%02d%02d-%u-%u-%u.csv",
-        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, Client.reqPPS, pktRecv, pktSent);
+        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, Client.reqPPS, pktRecv, mark);
     if (ret <= 0) {
         return;
     }
@@ -898,7 +899,7 @@ PerfClientConnection::OnShutdownComplete() {
 
 void
 PerfClientConnection::StartNewStream() {
-    printf("start new stream\n");
+    //printf("start new stream\n");
     StreamsCreated++;
     StreamsActive++;
     auto Stream = Worker.StreamPool.Alloc(*this);
@@ -1013,48 +1014,16 @@ PerfClientConnection::ConnectionCallback(
             if (recvCounterArray[order] >= Client.latBatch) {
                 uint32_t lat = (uint32_t)(CxPlatTimeUs64() - udeLatencyStart[order]);
                 udeLatencyValues[order] = lat;
-                pktRecv++;
+                //pktRecv++;
             }
         }
-        /*
-        if (order >= (kMaxSamples-1)) {
-#ifdef _WIN32
-            qsort_s(
-                udeLatencyValues,
-                kMaxSamples,
-                sizeof(uint32_t),
-                [](void*, const void* Left, const void* Right) -> int {
-                    return *(const uint32_t*)Left - *(const uint32_t*)Right;
-                },
-                nullptr);
-#else
-            qsort(
-                udeLatencyValues,
-                kMaxSamples,
-                sizeof(uint32_t),
-                [](const void* Left, const void* Right) -> int {
-                    return *(const uint32_t*)Left - *(const uint32_t*)Right;
-                });
-#endif
-            printf("Min Lat: %u us p50 %u p90 %u p99 %u p99.9 %u p99.99 %u p99.999 %u p99.9999 %u us\n", DatagramMinLat,
-                udeLatencyValues[(uint32_t)(kMaxSamples*0.5)],
-                udeLatencyValues[(uint32_t)(kMaxSamples*0.90)],
-                udeLatencyValues[(uint32_t)(kMaxSamples*0.99)],
-                udeLatencyValues[(uint32_t)(kMaxSamples*0.999)],
-                udeLatencyValues[(uint32_t)(kMaxSamples*0.9999)],
-                udeLatencyValues[(uint32_t)(kMaxSamples*0.99999)],
-                udeLatencyValues[(uint32_t)(kMaxSamples*0.999999)]
-                );
-        }*/
         break;
     }
-    /*
     case QUIC_CONNECTION_EVENT_DATAGRAM_SEND_STATE_CHANGED: {
         if (Event->DATAGRAM_SEND_STATE_CHANGED.State == QUIC_DATAGRAM_SEND_ACKNOWLEDGED) {
-            printf("sent done\n");
+            pktRecv++;
         }
     }
-    */
     default:
         break;
     }
