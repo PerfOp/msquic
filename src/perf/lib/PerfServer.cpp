@@ -240,7 +240,7 @@ PerfServer::ConnectionCallback(
             [](HQUIC Stream, void* Context, QUIC_STREAM_EVENT* Event) -> QUIC_STATUS {
                 return ((StreamContext*)Context)->Server->StreamCallback((StreamContext*)Context, Stream, Event);
             };
-        printf("New stream started: %llu\n",Context->ResponseSize);
+        //printf("New stream started: %llu\n",Context->ResponseSize);
         MsQuic->SetCallbackHandler(Event->PEER_STREAM_STARTED.Stream, (void*)Handler, Context);
         break;
     }
